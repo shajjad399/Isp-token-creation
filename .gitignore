@@ -1,0 +1,22 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Environment
+.env
+**/.env
+
+# Logs
+*.log
+backend/logs/
+
+# Build
+dist/
+build/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# ignore creditional
+credentials.json
