@@ -2,8 +2,9 @@
 import axios from 'axios';
 import toast from 'react-hot-toast';
 
+// ✅ Dynamic URL - Environment Variable থেকে Load
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
-const ADMIN_API_URL = import.meta.env.VITE_ADMIN_API_URL || 'http://localhost:5000/api/admin';
+const ADMIN_API_URL = `${API_URL}/admin`;  // ✅ এভাবে Set করুন
 
 // ============================================================
 // MAIN API
@@ -17,6 +18,19 @@ const api = axios.create({
   }
 });
 
+// ============================================================
+// ADMIN API
+// ============================================================
+const adminApi = axios.create({
+  baseURL: ADMIN_API_URL,  // ✅ Dynamic URL
+  timeout: 30000,
+  headers: {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json'
+  }
+});
+
+// ... interceptors (same)
 // ============================================================
 // ADMIN API
 // ============================================================

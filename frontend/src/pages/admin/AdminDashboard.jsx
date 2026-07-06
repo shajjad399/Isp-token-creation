@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import AdminLayout from '../../components/admin/AdminLayout';
-import axios from 'axios';
+import { adminApi } from '../../services/api';  // ✅ Import adminApi
 import { UsersIcon, TicketIcon, CheckCircleIcon, ClockIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -29,15 +29,8 @@ const AdminDashboard = () => {
       setLoading(true);
       setError(null);
       
-      const token = localStorage.getItem('token');
-      
-      // ✅ সরাসরি URL ব্যবহার করুন
-      const response = await axios.get('http://localhost:5000/api/admin/stats', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      // ✅ adminApi ব্যবহার করুন (hardcoded localhost নয়)
+      const response = await adminApi.get('/stats');
       
       console.log('✅ Admin Stats Response:', response.data);
       
@@ -54,6 +47,9 @@ const AdminDashboard = () => {
       setLoading(false);
     }
   };
+
+  // ... rest of component (same)
+};
 
   const statCards = [
     { title: 'Total Users', value: stats.totalUsers, icon: UsersIcon, color: 'blue' },
