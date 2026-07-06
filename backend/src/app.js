@@ -2,7 +2,7 @@
 // backend/src/app.js
 // ============================================================
 // Description: Express application configuration
-// Version: 1.0.0
+// Version: 2.0.0
 // ============================================================
 
 import express from 'express';
@@ -64,7 +64,6 @@ const getCorsOrigin = () => {
   }
 
   // Add Vercel URL pattern (wildcard for preview deployments)
-  // This allows all Vercel preview deployments
   const vercelPattern = /\.vercel\.app$/;
 
   // Combine all origins
@@ -79,24 +78,21 @@ const getCorsOrigin = () => {
 
     // Check if origin is allowed
     const isAllowed = allowedOrigins.some(allowed => {
-      // If it's a string, check exact match
       if (typeof allowed === 'string') {
         return allowed === origin;
       }
-      // If it's a RegExp, test it
       if (allowed instanceof RegExp) {
         return allowed.test(origin);
       }
       return false;
     });
 
-    // Also check against Vercel pattern if not in list
+    // Also check against Vercel pattern
     const isVercel = vercelPattern.test(origin);
 
     if (isAllowed || isVercel) {
       callback(null, true);
     } else {
-      // Log unknown origin for debugging (but don't block in development)
       if (env.isDevelopment) {
         console.warn(`⚠️ CORS: Unknown origin "${origin}" - allowing in development mode`);
         callback(null, true);
@@ -122,22 +118,19 @@ const corsOptions = {
     'Access-Control-Allow-Origin'
   ],
   exposedHeaders: ['Content-Range', 'X-Content-Range'],
-  maxAge: 86400, // 24 hours
+  maxAge: 86400,
   preflightContinue: false,
   optionsSuccessStatus: 204
 };
 
 // Apply CORS middleware
 app.use(cors(corsOptions));
-
-// Handle preflight requests explicitly
 app.options('*', cors(corsOptions));
 
 // ============================================================
 // SECURITY MIDDLEWARES
 // ============================================================
 
-// Set security HTTP headers
 app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" },
   contentSecurityPolicy: {
@@ -150,33 +143,20 @@ app.use(helmet({
   },
 }));
 
-// ============================================================
-// COMPRESSION
-// ============================================================
-
 app.use(compression({
   level: 6,
-  threshold: 100 * 1024 // 100KB
+  threshold: 100 * 1024
 }));
 
 // ============================================================
 // DATA SANITIZATION
 // ============================================================
 
-// Sanitize data against NoSQL injection
 app.use(mongoSanitize());
-
-// Sanitize data against XSS
 app.use(xss());
-
-// Prevent parameter pollution
 app.use(hpp({
   whitelist: ['page', 'limit', 'sortBy', 'sortOrder', 'status', 'priority', 'category']
 }));
-
-// ============================================================
-// COOKIE PARSER
-// ============================================================
 
 app.use(cookieParser());
 
@@ -193,8 +173,6 @@ const limiter = rateLimit({
   skipSuccessfulRequests: false,
   skipFailedRequests: false,
 });
-
-// Apply rate limiting to all API routes
 app.use('/api', limiter);
 
 // ============================================================
@@ -218,7 +196,6 @@ app.use(express.urlencoded({
 // LOGGING
 // ============================================================
 
-// Request logging
 app.use((req, res, next) => {
   logger.info(`${req.method} ${req.originalUrl}`, {
     ip: req.ip,
@@ -233,15 +210,14 @@ app.use((req, res, next) => {
 // ============================================================
 
 app.get('/health', (req, res) => {
-  const healthData = {
+  res.status(200).json({
     status: 'OK',
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
     environment: env.nodeEnv || 'development',
     memory: process.memoryUsage(),
     version: '1.0.0'
-  };
-  res.status(200).json(healthData);
+  });
 });
 
 // ============================================================
@@ -284,9 +260,7 @@ app.get('/', (req, res) => {
         deleteUser: 'DELETE /api/admin/users/:id',
         stats: 'GET /api/admin/stats'
       }
-    },
-    documentation: 'https://docs.ispticketing.com',
-    support: 'support@ispticketing.com'
+    }
   });
 });
 
@@ -301,18 +275,23 @@ app.use('/api/v1/users', userRoutes);
 app.use('/api/v1/notifications', notificationRoutes);
 
 // ============================================================
-// ✅ ADMIN API ROUTES
+// ✅ ADMIN API ROUTES (FIXED)
 // ============================================================
 app.use('/api/admin', adminRoutes);
+
+// ============================================================
+// ✅ DEBUG LOGGING (Add this temporarily)
+// ============================================================
+app.use((req, res, next) => {
+  console.log(`📡 ${req.method} ${req.originalUrl}`);
+  next();
+});
 
 // ============================================================
 // ERROR HANDLING
 // ============================================================
 
-// 404 handler - Must be before error handler
 app.use(notFound);
-
-// Global error handler - Must be last
 app.use(errorHandler);
 
 // ============================================================
