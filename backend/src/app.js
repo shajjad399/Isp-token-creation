@@ -37,6 +37,103 @@ import notificationRoutes from './routes/notificationRoutes.js';
 const app = express();
 
 // ============================================================
+// ✅ CORS CONFIGURATION - PRODUCTION READY
+// ============================================================
+
+// Dynamic whitelist based on environment
+const getCorsOrigin = () => {
+  // Development origins
+  const devOrigins = [
+    'http://localhost:5173',
+    'http://localhost:3000',
+    'http://127.0.0.1:5173',
+    'http://127.0.0.1:3000'
+  ];
+
+  // Production origins from environment
+  const prodOrigins = [];
+
+  // Add FRONTEND_URL from environment if exists
+  if (env.frontendUrl && env.frontendUrl !== 'http://localhost:5173') {
+    prodOrigins.push(env.frontendUrl);
+  }
+
+  // Add Render URL pattern (if deployed on Render)
+  if (process.env.RENDER_EXTERNAL_URL) {
+    prodOrigins.push(process.env.RENDER_EXTERNAL_URL);
+  }
+
+  // Add Vercel URL pattern (wildcard for preview deployments)
+  // This allows all Vercel preview deployments
+  const vercelPattern = /\.vercel\.app$/;
+
+  // Combine all origins
+  const allowedOrigins = [...devOrigins, ...prodOrigins];
+
+  // Return function for dynamic origin validation
+  return function(origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) {
+      return callback(null, true);
+    }
+
+    // Check if origin is allowed
+    const isAllowed = allowedOrigins.some(allowed => {
+      // If it's a string, check exact match
+      if (typeof allowed === 'string') {
+        return allowed === origin;
+      }
+      // If it's a RegExp, test it
+      if (allowed instanceof RegExp) {
+        return allowed.test(origin);
+      }
+      return false;
+    });
+
+    // Also check against Vercel pattern if not in list
+    const isVercel = vercelPattern.test(origin);
+
+    if (isAllowed || isVercel) {
+      callback(null, true);
+    } else {
+      // Log unknown origin for debugging (but don't block in development)
+      if (env.isDevelopment) {
+        console.warn(`⚠️ CORS: Unknown origin "${origin}" - allowing in development mode`);
+        callback(null, true);
+      } else {
+        console.warn(`❌ CORS: Blocked origin "${origin}"`);
+        callback(new Error('Not allowed by CORS'), false);
+      }
+    }
+  };
+};
+
+// CORS options
+const corsOptions = {
+  origin: getCorsOrigin(),
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: [
+    'Content-Type',
+    'Authorization',
+    'X-Requested-With',
+    'Accept',
+    'Origin',
+    'Access-Control-Allow-Origin'
+  ],
+  exposedHeaders: ['Content-Range', 'X-Content-Range'],
+  maxAge: 86400, // 24 hours
+  preflightContinue: false,
+  optionsSuccessStatus: 204
+};
+
+// Apply CORS middleware
+app.use(cors(corsOptions));
+
+// Handle preflight requests explicitly
+app.options('*', cors(corsOptions));
+
+// ============================================================
 // SECURITY MIDDLEWARES
 // ============================================================
 
@@ -52,22 +149,6 @@ app.use(helmet({
     },
   },
 }));
-
-// ============================================================
-// CORS CONFIGURATION
-// ============================================================
-
-app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:3000', 'http://127.0.0.1:5173'],
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-  exposedHeaders: ['Content-Range', 'X-Content-Range'],
-  maxAge: 86400 // 24 hours
-}));
-
-// Handle preflight requests
-app.options('*', cors());
 
 // ============================================================
 // COMPRESSION
