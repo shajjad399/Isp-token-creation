@@ -34,6 +34,7 @@ import ticketRoutes from './routes/ticketRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import notificationRoutes from './routes/notificationRoutes.js';
+import chatRoutes from './routes/chatRoutes.js';
 
 // ============================================================
 // INITIALIZE EXPRESS APP
@@ -279,6 +280,7 @@ app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/tickets', ticketRoutes);
 app.use('/api/v1/users', userRoutes);
 app.use('/api/v1/notifications', notificationRoutes);
+app.use('/api/v1/chats', chatRoutes);
 
 // ============================================================
 // ✅ ADMIN API ROUTES (FIXED)

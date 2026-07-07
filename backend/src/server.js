@@ -14,6 +14,7 @@ import { createServer } from 'http';
 import { Server as SocketServer } from 'socket.io';
 import { initSocketIO as initTicketSocket } from './controllers/ticketController.js';
 import { initNotificationSocket } from './services/notificationService.js';
+import { initChatSocket } from './services/chatService.js';
 
 // ============================================================
 // CREATE HTTP SERVER
@@ -87,6 +88,7 @@ global.userSockets = userSockets;
 // ============================================================
 initTicketSocket(io, userSockets);
 initNotificationSocket(io);
+initChatSocket(io);
 
 // ============================================================
 // START SERVER

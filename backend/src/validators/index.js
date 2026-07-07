@@ -1,8 +1,11 @@
 // backend/src/validators/index.js
+import Joi from 'joi';
+
 export * from './authValidator.js';
 export * from './ticketValidator.js';
 export * from './userValidator.js';
 export * from './notificationValidator.js';
+export * from './chatValidator.js';
 
 /**
  * Common validation schemas
