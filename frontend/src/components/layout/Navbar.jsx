@@ -1,8 +1,9 @@
 // frontend/src/components/layout/Navbar.jsx
-import React, { useState } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../hooks/useTheme';
+import { useNotifications } from '../../hooks/useNotifications';
 import Avatar from '../ui/Avatar';
 import {
   BellIcon,
@@ -20,12 +21,7 @@ import { Fragment } from 'react';
 const Navbar = () => {
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
-  const [notifications] = useState([
-    { id: 1, message: 'New ticket created', read: false },
-    { id: 2, message: 'Ticket #TKT-001 resolved', read: false }
-  ]);
-
-  const unreadCount = notifications.filter(n => !n.read).length;
+  const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
 
   return (
     <nav className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 md:px-6 py-3">
@@ -87,25 +83,65 @@ const Navbar = () => {
                 <div className="p-4 border-b border-gray-200 dark:border-gray-700">
                   <h3 className="font-semibold text-gray-900 dark:text-white">Notifications</h3>
                 </div>
-                <div className="max-h-64 overflow-y-auto">
+                <div className="max-h-80 overflow-y-auto">
                   {notifications.length === 0 ? (
                     <p className="p-4 text-gray-500 dark:text-gray-400 text-center">No notifications</p>
                   ) : (
-                    notifications.map(notif => (
-                      <Menu.Item key={notif.id}>
-                        {({ active }) => (
-                          <div className={`px-4 py-3 cursor-pointer ${active ? 'bg-gray-50 dark:bg-gray-700' : ''}`}>
-                            <p className={`text-sm ${notif.read ? 'text-gray-500 dark:text-gray-400' : 'text-gray-900 dark:text-white font-medium'}`}>
-                              {notif.message}
-                            </p>
+                    notifications.map(notif => {
+                      const content = (
+                        <div
+                          onClick={() => !notif.isRead && markAsRead(notif._id)}
+                          className="w-full text-left"
+                        >
+                          <div className="flex items-start gap-2">
+                            {!notif.isRead && (
+                              <span className="mt-1.5 h-2 w-2 rounded-full bg-blue-500 flex-shrink-0" />
+                            )}
+                            <div className={notif.isRead ? 'ml-4' : ''}>
+                              <p className={`text-sm ${notif.isRead ? 'text-gray-500 dark:text-gray-400' : 'text-gray-900 dark:text-white font-medium'}`}>
+                                {notif.title}
+                              </p>
+                              <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
+                                {notif.shortMessage || notif.message}
+                              </p>
+                            </div>
                           </div>
-                        )}
-                      </Menu.Item>
-                    ))
+                        </div>
+                      );
+
+                      return (
+                        <Menu.Item key={notif._id}>
+                          {({ active }) => (
+                            notif.relatedTicket ? (
+                              <Link
+                                to={`/tickets/${notif.relatedTicket._id}`}
+                                onClick={() => !notif.isRead && markAsRead(notif._id)}
+                                className={`block px-4 py-3 cursor-pointer ${active ? 'bg-gray-50 dark:bg-gray-700' : ''}`}
+                              >
+                                {content}
+                              </Link>
+                            ) : (
+                              <div
+                                onClick={() => !notif.isRead && markAsRead(notif._id)}
+                                className={`px-4 py-3 cursor-pointer ${active ? 'bg-gray-50 dark:bg-gray-700' : ''}`}
+                              >
+                                {content}
+                              </div>
+                            )
+                          )}
+                        </Menu.Item>
+                      );
+                    })
                   )}
                 </div>
                 <div className="p-4 border-t border-gray-200 dark:border-gray-700">
-                  <button className="text-sm text-blue-600 hover:underline">Mark all as read</button>
+                  <button
+                    onClick={markAllAsRead}
+                    disabled={unreadCount === 0}
+                    className="text-sm text-blue-600 hover:underline disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:no-underline"
+                  >
+                    Mark all as read
+                  </button>
                 </div>
               </Menu.Items>
             </Transition>

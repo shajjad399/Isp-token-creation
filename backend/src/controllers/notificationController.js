@@ -3,6 +3,7 @@ import Notification from '../models/Notification.js';
 import ApiError from '../utils/ApiError.js';
 import ApiResponse from '../utils/ApiResponse.js';
 import logger from '../config/logger.js';
+import { emitNotificationRead, emitAllNotificationsRead } from '../services/notificationService.js';
 
 /**
  * @desc    Get user notifications
@@ -91,6 +92,9 @@ export const markAsRead = async (req, res, next) => {
     notification.readAt = new Date();
     await notification.save();
 
+    // ✅ Let every open tab/device know this one is read (dot updates live)
+    await emitNotificationRead(req.user.id, notification._id);
+
     res.status(200).json(
       ApiResponse.success(notification, 'Notification marked as read')
     );
@@ -111,6 +115,9 @@ export const markAllAsRead = async (req, res, next) => {
       { user: req.user.id, isRead: false },
       { isRead: true, readAt: new Date() }
     );
+
+    // ✅ Clear the dot live on every open tab/device
+    await emitAllNotificationsRead(req.user.id);
 
     res.status(200).json(
       ApiResponse.success(null, 'All notifications marked as read')

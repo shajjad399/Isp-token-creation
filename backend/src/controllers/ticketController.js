@@ -8,6 +8,7 @@
 import Ticket from '../models/Ticket.js';
 import User from '../models/User.js';
 import Notification from '../models/Notification.js';
+import { createAndSendNotification } from '../services/notificationService.js';
 import ApiError from '../utils/ApiError.js';
 import ApiResponse from '../utils/ApiResponse.js';
 import { generateTicketId } from '../utils/helpers.js';
@@ -68,11 +69,18 @@ export const createTicket = async (req, res, next) => {
       attachments: attachments || []
     });
 
+    ticket.pushStatusHistory({
+      oldStatus: null,
+      newStatus: 'open',
+      user: req.user,
+      note: 'Ticket created'
+    });
+
     await ticket.save();
     await ticket.populate('customer', 'name email phone');
 
     // Create notification
-    await Notification.create({
+    await createAndSendNotification({
       user: req.user.id,
       type: NOTIFICATION_TYPE_MAP.created,
       title: 'Ticket Created',
@@ -290,7 +298,7 @@ export const updateTicket = async (req, res, next) => {
     await ticket.populate('customer', 'name email');
     await ticket.populate('assignedTo', 'name email');
 
-    await Notification.create({
+    await createAndSendNotification({
       user: ticket.customer._id,
       type: NOTIFICATION_TYPE_MAP.updated,
       title: 'Ticket Updated',
@@ -380,13 +388,19 @@ export const assignTicket = async (req, res, next) => {
 
     ticket.assignedTo = assignedTo;
     if (ticket.status === 'open') {
+      ticket.pushStatusHistory({
+        oldStatus: 'open',
+        newStatus: 'in-progress',
+        user: req.user,
+        note: `Auto-updated on assignment to ${agent.name}`
+      });
       ticket.status = 'in-progress';
     }
     await ticket.save();
     await ticket.populate('assignedTo', 'name email');
 
     // Notification for agent
-    await Notification.create({
+    await createAndSendNotification({
       user: assignedTo,
       type: NOTIFICATION_TYPE_MAP.assigned,
       title: 'Ticket Assigned',
@@ -396,7 +410,7 @@ export const assignTicket = async (req, res, next) => {
     });
 
     // Notification for customer
-    await Notification.create({
+    await createAndSendNotification({
       user: ticket.customer,
       type: NOTIFICATION_TYPE_MAP.assigned,
       title: 'Agent Assigned',
@@ -479,6 +493,14 @@ export const changeStatus = async (req, res, next) => {
       }
     }
 
+    // ✅ Log this change into statusHistory BEFORE overwriting ticket.status
+    ticket.pushStatusHistory({
+      oldStatus,
+      newStatus: status,
+      user: req.user,
+      note: resolution || null
+    });
+
     // Update status
     ticket.status = status;
 
@@ -509,7 +531,7 @@ export const changeStatus = async (req, res, next) => {
 
     // Notify customer (if not customer)
     if (req.user.role !== 'customer') {
-      await Notification.create({
+      await createAndSendNotification({
         user: ticket.customer._id,
         type: notificationType,
         title: `Ticket ${status.charAt(0).toUpperCase() + status.slice(1)}`,
@@ -526,7 +548,7 @@ export const changeStatus = async (req, res, next) => {
 
     // Notify assigned agent (if any and not the changer)
     if (ticket.assignedTo && ticket.assignedTo._id.toString() !== req.user.id) {
-      await Notification.create({
+      await createAndSendNotification({
         user: ticket.assignedTo._id,
         type: notificationType,
         title: `Ticket ${status.charAt(0).toUpperCase() + status.slice(1)}`,
@@ -607,7 +629,7 @@ export const addComment = async (req, res, next) => {
 
     // Notify customer (if not customer)
     if (req.user.role !== 'customer') {
-      await Notification.create({
+      await createAndSendNotification({
         user: ticket.customer,
         type: NOTIFICATION_TYPE_MAP.comment,
         title: 'New Comment',
@@ -623,7 +645,7 @@ export const addComment = async (req, res, next) => {
 
     // Notify assigned agent (if any and not commenter)
     if (ticket.assignedTo && ticket.assignedTo.toString() !== req.user.id) {
-      await Notification.create({
+      await createAndSendNotification({
         user: ticket.assignedTo,
         type: NOTIFICATION_TYPE_MAP.comment,
         title: 'New Comment',

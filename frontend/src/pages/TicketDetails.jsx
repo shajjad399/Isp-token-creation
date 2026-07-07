@@ -2,11 +2,13 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { useSocket } from '../context/SocketContext';
 import api from '../services/api';
 import Card, { CardHeader, CardBody } from '../components/ui/Card';
 import Badge from '../components/ui/Badge';
 import Button from '../components/ui/Button';
 import Avatar from '../components/ui/Avatar';
+import StatusHistoryTimeline from '../components/tickets/StatusHistoryTimeline';
 import {
   ArrowLeftIcon,
   TrashIcon,
@@ -23,6 +25,7 @@ const TicketDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const socket = useSocket();
   const [ticket, setTicket] = useState(null);
   const [loading, setLoading] = useState(true);
   const [comment, setComment] = useState('');
@@ -39,6 +42,57 @@ const TicketDetails = () => {
   useEffect(() => {
     fetchTicket();
   }, [id]);
+
+  // ============================================================
+  // ✅ LIVE UPDATES - join this ticket's room and listen for changes
+  // so an admin working on the ticket sees updates instantly, and
+  // so this viewer's own screen updates without a manual refresh.
+  // ============================================================
+  useEffect(() => {
+    if (!socket || !id) return;
+
+    socket.emit('join_ticket', id);
+
+    const handleStatusChanged = (payload) => {
+      setTicket((prev) => {
+        if (!prev || prev.ticketId !== payload.ticketId) return prev;
+        toast(`Status changed to "${payload.newStatus}" by ${payload.changedBy}`, { icon: '🔄' });
+        return { ...prev, status: payload.newStatus, updatedAt: payload.updatedAt };
+      });
+      // Refetch to get the fresh statusHistory entry + resolution/closedAt fields
+      fetchTicket();
+    };
+
+    const handleTicketUpdated = () => {
+      fetchTicket();
+    };
+
+    const handleNewComment = (payload) => {
+      setTicket((prev) => {
+        if (!prev) return prev;
+        const alreadyExists = prev.comments?.some((c) => c._id === payload.comment._id);
+        if (alreadyExists) return prev;
+        return { ...prev, comments: [...(prev.comments || []), payload.comment] };
+      });
+    };
+
+    const handleTicketAssigned = () => {
+      fetchTicket();
+    };
+
+    socket.on('status_changed', handleStatusChanged);
+    socket.on('ticket_updated', handleTicketUpdated);
+    socket.on('new_comment', handleNewComment);
+    socket.on('ticket_assigned', handleTicketAssigned);
+
+    return () => {
+      socket.emit('leave_ticket', id);
+      socket.off('status_changed', handleStatusChanged);
+      socket.off('ticket_updated', handleTicketUpdated);
+      socket.off('new_comment', handleNewComment);
+      socket.off('ticket_assigned', handleTicketAssigned);
+    };
+  }, [socket, id]);
 
   const fetchTicket = async () => {
     try {
@@ -313,6 +367,20 @@ const TicketDetails = () => {
               )}
             </div>
           )}
+        </CardBody>
+      </Card>
+
+      {/* ============================================================
+          ✅ STATUS HISTORY TIMELINE
+          ============================================================ */}
+      <Card>
+        <CardHeader>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+            Status History
+          </h3>
+        </CardHeader>
+        <CardBody>
+          <StatusHistoryTimeline history={ticket.statusHistory} />
         </CardBody>
       </Card>
 

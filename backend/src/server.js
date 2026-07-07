@@ -12,6 +12,8 @@ import connectDB from './config/db.js';
 import logger from './config/logger.js';
 import { createServer } from 'http';
 import { Server as SocketServer } from 'socket.io';
+import { initSocketIO as initTicketSocket } from './controllers/ticketController.js';
+import { initNotificationSocket } from './services/notificationService.js';
 
 // ============================================================
 // CREATE HTTP SERVER
@@ -77,6 +79,14 @@ io.on('connection', (socket) => {
 // Make io and userSockets globally accessible
 global.io = io;
 global.userSockets = userSockets;
+
+// ============================================================
+// ✅ WIRE UP SOCKET.IO INTO CONTROLLERS / SERVICES
+// (without this, io stays null inside those files and no
+// real-time event ever actually gets emitted)
+// ============================================================
+initTicketSocket(io, userSockets);
+initNotificationSocket(io);
 
 // ============================================================
 // START SERVER
