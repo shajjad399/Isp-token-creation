@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import AdminLayout from '../../components/admin/AdminLayout';
-import { adminApi } from '../../services/api';  // ✅ Import adminApi
+import { adminApi } from '../../services/api';
 import { UsersIcon, TicketIcon, CheckCircleIcon, ClockIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -28,12 +28,11 @@ const AdminDashboard = () => {
     try {
       setLoading(true);
       setError(null);
-      
-      // ✅ adminApi ব্যবহার করুন (hardcoded localhost নয়)
+
       const response = await adminApi.get('/stats');
-      
+
       console.log('✅ Admin Stats Response:', response.data);
-      
+
       if (response.data?.success) {
         setStats(response.data.data);
       } else {
@@ -47,9 +46,6 @@ const AdminDashboard = () => {
       setLoading(false);
     }
   };
-
-  // ... rest of component (same)
-};
 
   const statCards = [
     { title: 'Total Users', value: stats.totalUsers, icon: UsersIcon, color: 'blue' },
@@ -79,8 +75,8 @@ const AdminDashboard = () => {
             <ExclamationTriangleIcon className="h-12 w-12 text-red-500 mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Failed to load stats</h3>
             <p className="text-gray-600 dark:text-gray-400 mt-2">{error}</p>
-            <button 
-              onClick={fetchStats} 
+            <button
+              onClick={fetchStats}
               className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors"
             >
               Retry
