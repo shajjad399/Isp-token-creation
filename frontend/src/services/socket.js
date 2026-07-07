@@ -15,9 +15,10 @@ let socket = null;
 
 /**
  * Create (if needed) and connect the shared socket, then join the
- * user's private room by authenticating with their user id.
+ * user's private room by authenticating with their user id (and role,
+ * so agents/admins also join the shared "agents" room for live chat).
  */
-export const connectSocket = (userId) => {
+export const connectSocket = (userId, role) => {
   if (!userId) return null;
 
   if (!socket) {
@@ -37,8 +38,8 @@ export const connectSocket = (userId) => {
   }
 
   // Re-authenticate on every (re)connect so a network drop doesn't
-  // silently leave the client outside its user room.
-  const authenticate = () => socket.emit('authenticate', userId);
+  // silently leave the client outside its user/agents room.
+  const authenticate = () => socket.emit('authenticate', { userId, role });
   socket.off('connect', authenticate);
   socket.on('connect', authenticate);
 

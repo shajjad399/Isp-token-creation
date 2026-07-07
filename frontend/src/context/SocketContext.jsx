@@ -20,7 +20,7 @@ export const SocketProvider = ({ children }) => {
     const userId = user?._id || user?.id;
 
     if (userId) {
-      const instance = connectSocket(userId);
+      const instance = connectSocket(userId, user?.role);
       setSocket(instance);
     } else {
       disconnectSocket();
@@ -33,7 +33,7 @@ export const SocketProvider = ({ children }) => {
       // Don't disconnect on every re-render — only real logout
       // (handled by the `else` branch above when user becomes null).
     };
-  }, [user?._id, user?.id]);
+  }, [user?._id, user?.id, user?.role]);
 
   return (
     <SocketContext.Provider value={socket}>
