@@ -14,7 +14,12 @@ import mongoSanitize from 'express-mongo-sanitize';
 import xss from 'xss-clean';
 import hpp from 'hpp';
 import cookieParser from 'cookie-parser';
+// (ফাইলের একদম শুরুতে, অন্য import গুলোর সাথে যোগ করো)
+import path from 'path';
+import { fileURLToPath } from 'url';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 // Import configurations
 import env from './config/env.js';
 import logger from './config/logger.js';
@@ -161,8 +166,9 @@ app.use(hpp({
 app.use(cookieParser());
 
 // ============================================================
-// RATE LIMITING
+// ✅ STATIC FILE SERVING - Uploaded avatars
 // ============================================================
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 const limiter = rateLimit({
   windowMs: (env.rateLimit?.window || 15) * 60 * 1000,

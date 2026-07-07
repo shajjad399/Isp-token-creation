@@ -1,56 +1,51 @@
-// ============================================================
-// backend/src/controllers/userController.js
-// ============================================================
-// Description: User controller with profile management,
-//              photo upload, activity log, and account management
-// Version: 2.0.0
-// ============================================================
-
+// ফাইলের একদম উপরে import গুলো এভাবে বদলাও:
 import User from '../models/User.js';
 import Ticket from '../models/Ticket.js';
 import Notification from '../models/Notification.js';
 import ApiError from '../utils/ApiError.js';
 import ApiResponse from '../utils/ApiResponse.js';
-import { cloudinary } from '../config/cloudinary.js';
+import { uploadDir } from '../config/cloudinary.js';
 import logger from '../config/logger.js';
+import path from 'path';
+import fs from 'fs';
 
 // ============================================================
-// ✅ GET PROFILE
+// ✅ UPLOAD PROFILE PHOTO
 // ============================================================
 
-export const getProfile = async (req, res, next) => {
+export const uploadProfilePhoto = async (req, res, next) => {
   try {
-    const user = await User.findById(req.user.id)
-      .select('-password -refreshToken -passwordResetToken -passwordResetExpires');
+    if (!req.file) {
+      throw new ApiError(400, 'No file uploaded');
+    }
 
+    const user = await User.findById(req.user.id);
     if (!user) {
       throw new ApiError(404, 'User not found');
     }
 
-    // Get ticket statistics
-    const ticketCounts = await Ticket.aggregate([
-      { $match: { customer: user._id } },
-      { $group: { _id: '$status', count: { $sum: 1 } } }
-    ]);
+    // Delete old avatar file from local disk if it exists
+    if (user.avatar) {
+      try {
+        const oldFilename = user.avatar.split('/').pop();
+        const oldFilePath = path.join(uploadDir, oldFilename);
+        if (fs.existsSync(oldFilePath)) {
+          fs.unlinkSync(oldFilePath);
+        }
+      } catch (error) {
+        logger.warn('Failed to delete old avatar:', error);
+      }
+    }
 
-    const stats = {};
-    ticketCounts.forEach(stat => {
-      stats[stat._id] = stat.count;
-    });
-
-    // Get notification count
-    const unreadNotifications = await Notification.countDocuments({
-      user: user._id,
-      isRead: false
-    });
+    // ✅ req.file.path আসলে সার্ভারের নিজস্ব ফাইল সিস্টেম path — এখন সঠিক URL সেভ করছি
+    user.avatar = `/uploads/avatars/${req.file.filename}`;
+    await user.save();
 
     res.status(200).json(
-      ApiResponse.success({
-        ...user.toObject(),
-        ticketStats: stats,
-        unreadNotifications
-      }, 'Profile fetched successfully')
+      ApiResponse.success({ avatar: user.avatar }, 'Profile photo uploaded successfully')
     );
+
+    logger.info(`Profile photo uploaded for: ${user.email}`);
   } catch (error) {
     next(error);
   }
@@ -152,10 +147,14 @@ export const deleteAccount = async (req, res, next) => {
     await Notification.deleteMany({ user: user._id });
 
     // Delete avatar from Cloudinary if exists
+    // Delete avatar file from local disk if it exists
     if (user.avatar) {
       try {
-        const publicId = user.avatar.split('/').pop().split('.')[0];
-        await cloudinary.uploader.destroy(`isp-ticketing/avatars/${publicId}`);
+        const filename = user.avatar.split('/').pop();
+        const filePath = path.join(uploadDir, filename);
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
       } catch (error) {
         logger.warn('Failed to delete avatar:', error);
       }

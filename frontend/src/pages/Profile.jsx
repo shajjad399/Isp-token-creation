@@ -6,7 +6,7 @@ import Input from '../components/ui/Input';
 import Avatar from '../components/ui/Avatar';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
-import api from '../services/api';
+import api, { getFileUrl } from '../services/api';
 import { CameraIcon, TrashIcon } from '@heroicons/react/24/outline';
 
 const Profile = () => {
@@ -124,7 +124,7 @@ const Profile = () => {
             <div className="relative">
               <Avatar 
                 name={user?.name} 
-                src={formData.avatar || user?.avatar} 
+                src={getFileUrl(formData.avatar || user?.avatar)} 
                 size="2xl" 
                 className="border-4 border-blue-500"
               />

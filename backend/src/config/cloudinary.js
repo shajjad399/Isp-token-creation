@@ -71,7 +71,7 @@ const upload = multer({
 // EXPORT
 // ============================================================
 
-export { upload };
+export { upload, uploadDir };
 
 // Dummy cloudinary export for compatibility
 export const cloudinary = null;

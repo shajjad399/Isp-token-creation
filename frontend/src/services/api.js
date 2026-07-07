@@ -1,11 +1,18 @@
-// frontend/src/services/api.js
+// frontend/src/services/api.js - শুরুর অংশ এভাবে বদলাও (বাকি ফাইল আগের মতোই থাকবে)
 import axios from 'axios';
 import toast from 'react-hot-toast';
 
-// ✅ Dynamic URL - Environment Variable থেকে Load
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
-// ✅ Backend-এ admin routes মাউন্ট করা আছে /api/admin এ (v1 ছাড়া), তাই v1 বাদ দিয়ে বসাচ্ছি
 const ADMIN_API_URL = `${API_URL.replace(/\/api\/v1$/, '/api')}/admin`;
+// ✅ Backend origin (/api/v1 ছাড়া) — uploaded ফাইল (যেমন avatar) এর URL বানাতে লাগবে
+const BACKEND_ORIGIN = API_URL.replace(/\/api\/v1$/, '');
+
+// Backend থেকে আসা relative path (/uploads/avatars/xxx.png) কে পূর্ণ URL এ রূপান্তর করে
+export const getFileUrl = (filePath) => {
+  if (!filePath) return null;
+  if (filePath.startsWith('http://') || filePath.startsWith('https://')) return filePath;
+  return `${BACKEND_ORIGIN}${filePath}`;
+};
 
 // ============================================================
 // MAIN API
