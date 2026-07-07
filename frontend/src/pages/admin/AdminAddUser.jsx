@@ -1,21 +1,21 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+// frontend/src/pages/admin/AdminAddUser.jsx
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import AdminLayout from '../../components/admin/AdminLayout';
-import axios from 'axios';
+import { adminApi } from '../../services/api';
 import toast from 'react-hot-toast';
-import { PencilIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { UserPlusIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import Select from '../../components/ui/Select';
 
-const AdminEditUser = () => {
-  const { id } = useParams();
+const AdminAddUser = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
-  const [fetching, setFetching] = useState(true);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
+    password: '',
     role: 'customer',
     phone: '',
     isActive: true
@@ -26,59 +26,6 @@ const AdminEditUser = () => {
     { value: 'agent', label: 'Agent' },
     { value: 'admin', label: 'Admin' }
   ];
-
-  useEffect(() => {
-    fetchUser();
-  }, [id]);
-
-  const fetchUser = async () => {
-    try {
-      setFetching(true);
-      const token = localStorage.getItem('token');
-      
-      console.log('📡 Fetching user with ID:', id);
-      
-      const response = await axios.get(`http://localhost:5000/api/admin/users/${id}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      console.log('✅ User data:', response.data);
-      
-      if (response.data?.success) {
-        const user = response.data.data;
-        setFormData({
-          name: user.name || '',
-          email: user.email || '',
-          role: user.role || 'customer',
-          phone: user.phone || '',
-          isActive: user.isActive !== undefined ? user.isActive : true
-        });
-      } else {
-        toast.error('Failed to load user data');
-        navigate('/admin/users');
-      }
-    } catch (error) {
-      console.error('❌ Error fetching user:', error);
-      
-      if (error.response?.status === 404) {
-        toast.error('User not found');
-      } else if (error.response?.status === 401) {
-        toast.error('Session expired. Please login again.');
-        navigate('/admin/login');
-      } else if (error.response?.status === 403) {
-        toast.error('Access denied. Admin only.');
-        navigate('/admin/login');
-      } else {
-        toast.error(error.response?.data?.message || 'Failed to load user data');
-      }
-      navigate('/admin/users');
-    } finally {
-      setFetching(false);
-    }
-  };
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -93,61 +40,40 @@ const AdminEditUser = () => {
     setLoading(true);
 
     try {
-      const token = localStorage.getItem('token');
-      
-      console.log('📡 Updating user:', id, formData);
-      
-      const response = await axios.put(`http://localhost:5000/api/admin/users/${id}`, formData, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      console.log('✅ Update response:', response.data);
-      
-      toast.success('User updated successfully!');
+      const response = await adminApi.post('/users', formData);
+
+      console.log('✅ User created:', response.data);
+      toast.success('User created successfully!');
       navigate('/admin/users');
     } catch (error) {
-      console.error('❌ Update error:', error);
-      
+      console.error('❌ Create error:', error);
+
       if (error.response?.status === 401) {
         toast.error('Session expired. Please login again.');
         navigate('/admin/login');
       } else if (error.response?.status === 403) {
         toast.error('Access denied. Admin only.');
         navigate('/admin/login');
+      } else if (error.response?.status === 409) {
+        toast.error('A user with this email already exists.');
       } else {
-        toast.error(error.response?.data?.message || 'Failed to update user');
+        toast.error(error.response?.data?.message || 'Failed to create user');
       }
     } finally {
       setLoading(false);
     }
   };
 
-  if (fetching) {
-    return (
-      <AdminLayout>
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-4 text-gray-600 dark:text-gray-400">Loading user data...</p>
-          </div>
-        </div>
-      </AdminLayout>
-    );
-  }
-
   return (
     <AdminLayout>
       <div className="max-w-3xl mx-auto">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Edit User</h1>
-            <p className="text-gray-500 dark:text-gray-400">Update user account information</p>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Add User</h1>
+            <p className="text-gray-500 dark:text-gray-400">Create a new user account</p>
           </div>
-          <button 
-            onClick={() => navigate('/admin/users')} 
+          <button
+            onClick={() => navigate('/admin/users')}
             className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
           >
             <XMarkIcon className="h-6 w-6" />
@@ -168,9 +94,21 @@ const AdminEditUser = () => {
             <Input
               label="Email Address"
               type="email"
+              name="email"
+              placeholder="Enter email address"
               value={formData.email}
-              disabled
-              className="bg-gray-100 dark:bg-gray-700 cursor-not-allowed"
+              onChange={handleChange}
+              required
+            />
+
+            <Input
+              label="Password"
+              type="password"
+              name="password"
+              placeholder="Minimum 6 characters"
+              value={formData.password}
+              onChange={handleChange}
+              required
             />
 
             <Input
@@ -207,8 +145,8 @@ const AdminEditUser = () => {
 
             <div className="flex gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
               <Button type="submit" variant="primary" fullWidth loading={loading}>
-                <PencilIcon className="h-5 w-5 mr-2" />
-                Update User
+                <UserPlusIcon className="h-5 w-5 mr-2" />
+                Create User
               </Button>
               <Button type="button" variant="secondary" onClick={() => navigate('/admin/users')}>
                 Cancel
@@ -221,4 +159,4 @@ const AdminEditUser = () => {
   );
 };
 
-export default AdminEditUser;
+export default AdminAddUser;

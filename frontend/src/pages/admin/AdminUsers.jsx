@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AdminLayout from '../../components/admin/AdminLayout';
-import axios from 'axios';
+import { adminApi } from '../../services/api';
 import toast from 'react-hot-toast';
 import { 
   PencilIcon, 
@@ -30,24 +30,17 @@ const AdminUsers = () => {
     try {
       setLoading(true);
       setError(null);
-      
-      const token = localStorage.getItem('token');
+
       const params = new URLSearchParams();
       if (search) params.append('search', search);
       if (roleFilter) params.append('role', roleFilter);
-      
-      const url = `http://localhost:5000/api/admin/users${params.toString() ? '?' + params.toString() : ''}`;
-      
-      // ✅ সরাসরি axios ব্যবহার করুন
-      const response = await axios.get(url, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      
+
+      const query = params.toString() ? `?${params.toString()}` : '';
+
+      const response = await adminApi.get(`/users${query}`);
+
       console.log('✅ Admin Users Response:', response.data);
-      
+
       if (response.data?.success) {
         setUsers(response.data.data?.users || []);
       } else {
@@ -64,18 +57,12 @@ const AdminUsers = () => {
 
   const handleDelete = async (userId) => {
     if (!window.confirm('Are you sure you want to delete this user?')) return;
-    
+
     try {
       setDeletingId(userId);
-      const token = localStorage.getItem('token');
-      
-      await axios.delete(`http://localhost:5000/api/admin/users/${userId}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      
+
+      await adminApi.delete(`/users/${userId}`);
+
       toast.success('User deleted successfully');
       fetchUsers();
     } catch (error) {
@@ -85,7 +72,6 @@ const AdminUsers = () => {
     }
   };
 
-  // ... rest of the component (same as before)
   const getRoleBadge = (role) => {
     const map = {
       admin: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
