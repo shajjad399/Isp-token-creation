@@ -157,8 +157,8 @@ const Register = () => {
     setLoading(false);
     
     if (result.success) {
-      toast.success('Registration successful! Please verify your email.');
-      navigate('/verify-email-pending');
+      toast.success('Registration successful! Welcome aboard 🎉');
+      navigate('/dashboard');
     } else {
       setError(result.error || 'Registration failed. Please try again.');
     }

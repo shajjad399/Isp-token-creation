@@ -5,53 +5,26 @@
 // Version: 3.0.0
 // ============================================================
 
-import nodemailer from 'nodemailer';
 import env from '../config/env.js';
 import logger from '../config/logger.js';
 
+const RESEND_API_URL = 'https://api.resend.com/emails';
+
 class EmailService {
   constructor() {
-    this.transporter = null;
     this.initialized = false;
     this.init();
   }
 
   init() {
-    try {
-      // Check if email credentials are configured
-      if (!env.email?.user || !env.email?.pass) {
-        console.warn('⚠️ Email credentials not configured. Email service will be disabled.');
-        this.initialized = false;
-        return;
-      }
-
-      this.transporter = nodemailer.createTransport({
-        host: env.email.host,
-        port: env.email.port,
-        secure: env.email.port === 465,
-        auth: {
-          user: env.email.user,
-          pass: env.email.pass
-        },
-        tls: {
-          rejectUnauthorized: false
-        }
-      });
-
-      // Verify connection
-      this.transporter.verify((error) => {
-        if (error) {
-          logger.error('Email service verification failed:', error.message);
-          this.initialized = false;
-        } else {
-          logger.info('✅ Email service initialized successfully');
-          this.initialized = true;
-        }
-      });
-    } catch (error) {
-      logger.error('Failed to initialize email service:', error.message);
+    if (!env.email?.resendApiKey) {
+      console.warn('⚠️ RESEND_API_KEY not configured. Email service will be disabled.');
       this.initialized = false;
+      return;
     }
+
+    this.initialized = true;
+    logger.info('✅ Email service initialized successfully (Resend API)');
   }
 
   /**
@@ -64,17 +37,35 @@ class EmailService {
     }
 
     try {
-      const mailOptions = {
-        from: env.email.from || 'noreply@ispticketing.com',
-        to,
-        subject,
-        html,
-        text: text || html?.replace(/<[^>]*>/g, '') || '',
-        attachments
-      };
+      const response = await fetch(RESEND_API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${env.email.resendApiKey}`
+        },
+        body: JSON.stringify({
+          from: env.email.from,
+          to: [to],
+          subject,
+          html,
+          text: text || html?.replace(/<[^>]*>/g, '') || '',
+          // Resend expects base64 content for attachments
+          attachments: attachments.map((a) => ({
+            filename: a.filename,
+            content: a.content,
+            path: a.url
+          }))
+        })
+      });
 
-      const info = await this.transporter.sendMail(mailOptions);
-      logger.info(`📧 Email sent to ${to}: ${info.messageId}`);
+      const data = await response.json();
+
+      if (!response.ok) {
+        logger.error(`❌ Failed to send email to ${to}:`, data?.message || response.statusText);
+        return false;
+      }
+
+      logger.info(`📧 Email sent to ${to}: ${data.id}`);
       return true;
     } catch (error) {
       logger.error(`❌ Failed to send email to ${to}:`, error.message);

@@ -51,13 +51,10 @@ const env = {
     refreshExpire: process.env.JWT_REFRESH_EXPIRE || '30d'
   },
   
-  // ✅ Email - Updated with fallback
+  // ✅ Email - via Resend HTTP API (SMTP ports are blocked on Render free tier)
   email: {
-    host: process.env.SMTP_HOST || 'smtp.gmail.com',
-    port: parseInt(process.env.SMTP_PORT) || 587,
-    user: process.env.SMTP_USER || '',
-    pass: process.env.SMTP_PASS || '',
-    from: process.env.EMAIL_FROM || 'noreply@ispticketing.com'
+    resendApiKey: process.env.RESEND_API_KEY || '',
+    from: process.env.EMAIL_FROM || 'onboarding@resend.dev'
   },
   
   // Frontend
@@ -91,7 +88,7 @@ const env = {
   
   // Features
   features: {
-    enableEmail: process.env.ENABLE_EMAIL === 'true' || !!process.env.SMTP_USER,
+    enableEmail: process.env.ENABLE_EMAIL === 'true' || !!process.env.RESEND_API_KEY,
     enableSms: process.env.ENABLE_SMS === 'true',
     enableNotifications: process.env.ENABLE_NOTIFICATIONS === 'true'
   },
@@ -113,7 +110,7 @@ if (env.isDevelopment) {
   console.log(`  FRONTEND_URL: ${env.frontendUrl}`);
   console.log(`  DATABASE: ${env.mongodbUri.split('/').pop()}`);
   console.log(`  EMAIL_ENABLED: ${env.features.enableEmail}`);
-  console.log(`  EMAIL_USER: ${env.email.user ? '✅ Configured' : '❌ Not configured'}`);
+  console.log(`  EMAIL_USER: ${env.email.resendApiKey ? '✅ Configured' : '❌ Not configured'}`);
 }
 
 // ============================================================

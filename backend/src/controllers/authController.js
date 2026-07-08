@@ -35,27 +35,17 @@ export const register = async (req, res, next) => {
     }
 
     // Create user
+    // Email verification is disabled — new accounts are verified immediately.
     const user = new User({
       name,
       email: email.toLowerCase(),
       password,
       phone,
       role: role || 'customer',
-      isEmailVerified: false
+      isEmailVerified: true
     });
 
     await user.save();
-
-    // Generate verification token
-    const verificationToken = user.generateEmailVerificationToken();
-    await user.save();
-
-    console.log('📧 Verification token generated for:', email);
-
-    // Send verification email
-    sendVerificationEmail(user.email, user.name, verificationToken).catch(err => {
-      logger.error('Failed to send verification email:', err);
-    });
 
     const { accessToken, refreshToken } = generateTokens(user);
     user.refreshToken = refreshToken;
@@ -76,10 +66,9 @@ export const register = async (req, res, next) => {
         {
           user: userData,
           accessToken,
-          refreshToken,
-          message: 'Please verify your email address. We sent a verification link to your email.'
+          refreshToken
         },
-        'Registration successful. Please verify your email.'
+        'Registration successful.'
       )
     );
 
@@ -124,25 +113,8 @@ export const login = async (req, res, next) => {
       });
     }
 
-    // Check email verification
-    if (!user.isEmailVerified) {
-      // Generate new verification token
-      const verificationToken = user.generateEmailVerificationToken();
-      await user.save();
-      
-      // Send verification email
-      sendVerificationEmail(user.email, user.name, verificationToken).catch(err => {
-        logger.error('Failed to resend verification email:', err);
-      });
-      
-      console.log('📧 Verification email resent for:', email);
-      
-      return res.status(403).json({
-        success: false,
-        message: 'Please verify your email first. A new verification link has been sent to your email.',
-        error: 'EMAIL_NOT_VERIFIED'
-      });
-    }
+    // Email verification check is disabled — accounts log in regardless of
+    // isEmailVerified status.
 
     // Check password
     const isPasswordMatch = await user.comparePassword(password);
