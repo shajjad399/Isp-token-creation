@@ -55,12 +55,12 @@ const ChatWidget = () => {
   };
 
   return (
-    <div className="fixed bottom-5 right-5 z-50">
+    <div className="fixed bottom-4 right-4 sm:bottom-5 sm:right-5 z-50">
       {/* Floating toggle button */}
       {!open && (
         <button
           onClick={() => setOpen(true)}
-          className="flex items-center justify-center h-14 w-14 rounded-full bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-xl shadow-blue-500/30 hover:scale-105 transition-transform"
+          className="flex items-center justify-center h-14 w-14 rounded-full bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-xl shadow-blue-500/30 hover:scale-105 active:scale-95 transition-transform"
           aria-label="Open live chat"
         >
           <ChatBubbleLeftRightIcon className="h-7 w-7" />
@@ -69,7 +69,7 @@ const ChatWidget = () => {
 
       {/* Chat panel */}
       {open && (
-        <div className="w-80 sm:w-96 h-[28rem] bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 flex flex-col overflow-hidden">
+        <div className="w-[calc(100vw-2rem)] max-w-96 sm:w-96 h-[70vh] max-h-[28rem] bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 flex flex-col overflow-hidden">
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white">
             <div>

@@ -37,11 +37,43 @@
     @apply transition-colors duration-200;
   }
 
+  /* ✅ Smooth scrolling app-wide, and no 300ms tap-delay / grey flash on
+     Android/mobile taps — makes every interaction feel snappier. */
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  html, body {
+    overscroll-behavior-y: none;
+  }
+
+  a, button, [role="button"], input, select, textarea {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  /* ✅ Respect the user's OS-level "reduce motion" setting — important for
+     accessibility and for low-power Android devices where heavy animation
+     can feel janky rather than premium. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
   body {
     @apply bg-white text-gray-900 dark:bg-gray-900 dark:text-gray-100;
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    /* ✅ Prevent iOS Safari from auto-zooming/shifting layout on rotate */
+    text-size-adjust: 100%;
   }
 
   ::-webkit-scrollbar {

@@ -14,12 +14,13 @@ import {
   ArrowRightOnRectangleIcon,
   Cog6ToothIcon,
   ShieldCheckIcon,
-  MagnifyingGlassIcon
+  MagnifyingGlassIcon,
+  Bars3Icon
 } from '@heroicons/react/24/outline';
 import { Menu, Transition } from '@headlessui/react';
 import { Fragment } from 'react';
 
-const Navbar = () => {
+const Navbar = ({ onMenuClick }) => {
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
@@ -28,8 +29,16 @@ const Navbar = () => {
     <nav className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 md:px-6 py-3">
       <div className="flex justify-between items-center">
         {/* Left Section */}
-        <div className="flex items-center space-x-4">
-          <h2 className="text-xl font-semibold text-gray-800 dark:text-white">
+        <div className="flex items-center space-x-2 md:space-x-4 min-w-0">
+          {/* Hamburger — mobile/tablet only, toggles the drawer sidebar */}
+          <button
+            onClick={onMenuClick}
+            className="md:hidden p-2 -ml-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex-shrink-0"
+            aria-label="Toggle menu"
+          >
+            <Bars3Icon className="h-6 w-6 text-gray-700 dark:text-gray-200" />
+          </button>
+          <h2 className="text-lg md:text-xl font-semibold text-gray-800 dark:text-white truncate">
             Dashboard
           </h2>
         </div>
@@ -80,7 +89,7 @@ const Navbar = () => {
               leaveFrom="transform opacity-100 scale-100"
               leaveTo="transform opacity-0 scale-95"
             >
-              <Menu.Items className="absolute right-0 mt-2 w-80 bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 z-50 overflow-hidden">
+              <Menu.Items className="absolute right-0 mt-2 w-[calc(100vw-2rem)] max-w-80 sm:w-80 bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 z-50 overflow-hidden">
                 <div className="p-4 border-b border-gray-200 dark:border-gray-700">
                   <h3 className="font-semibold text-gray-900 dark:text-white">Notifications</h3>
                 </div>

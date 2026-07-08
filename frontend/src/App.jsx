@@ -5,7 +5,7 @@
 // Version: 2.0.0
 // ============================================================
 
-import React, { lazy, Suspense, useEffect } from 'react';
+import React, { lazy, Suspense, useEffect, useState } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth';
 
@@ -43,25 +43,12 @@ const AdminEditUser = lazy(() => import('./pages/admin/AdminEditUser'));
 import Navbar from './components/layout/Navbar';
 import Sidebar from './components/layout/Sidebar';
 import ChatWidget from './components/chat/ChatWidget';
+import Loader from './components/common/Loader';
 
 // ============================================================
-// ✅ LOADING COMPONENT - Premium Design
+// ✅ LOADING COMPONENT — now a shared, premium, reusable component
+// (see src/components/common/Loader.jsx)
 // ============================================================
-
-const Loader = () => (
-  <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 via-white to-gray-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
-    <div className="text-center">
-      <div className="relative">
-        <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="w-8 h-8 border-4 border-purple-600 border-b-transparent rounded-full animate-spin animation-delay-150"></div>
-        </div>
-      </div>
-      <p className="mt-6 text-gray-600 dark:text-gray-400 font-medium">Loading your experience...</p>
-      <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">Please wait</p>
-    </div>
-  </div>
-);
 
 // ============================================================
 // ✅ ROUTE GUARDS - Professional Level
@@ -130,19 +117,44 @@ const PublicRoute = ({ children }) => {
 // ✅ DASHBOARD LAYOUT - Premium Design
 // ============================================================
 
-const DashboardLayout = ({ children }) => (
-  <div className="flex h-screen bg-gray-50 dark:bg-gray-900 overflow-hidden">
-    <Sidebar />
-    <div className="flex-1 flex flex-col overflow-hidden">
-      <Navbar />
-      <main className="flex-1 overflow-y-auto p-4 md:p-6 bg-gray-50 dark:bg-gray-900">
-        {children}
-      </main>
+const DashboardLayout = ({ children }) => {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const location = useLocation();
+
+  // Auto-close the mobile drawer whenever the route changes
+  useEffect(() => {
+    setSidebarOpen(false);
+  }, [location.pathname]);
+
+  // Prevent background scroll while the mobile drawer is open
+  useEffect(() => {
+    document.body.style.overflow = sidebarOpen ? 'hidden' : '';
+    return () => { document.body.style.overflow = ''; };
+  }, [sidebarOpen]);
+
+  return (
+    <div className="flex h-screen bg-gray-50 dark:bg-gray-900 overflow-hidden">
+      {/* Backdrop — mobile/tablet only, closes drawer on tap */}
+      <div
+        onClick={() => setSidebarOpen(false)}
+        aria-hidden="true"
+        className={`fixed inset-0 z-30 bg-black/50 backdrop-blur-sm transition-opacity duration-300 md:hidden
+          ${sidebarOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
+      />
+
+      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+        <Navbar onMenuClick={() => setSidebarOpen((prev) => !prev)} />
+        <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-6 bg-gray-50 dark:bg-gray-900">
+          {children}
+        </main>
+      </div>
+      {/* Floating live-chat button - only renders itself for role === 'customer' */}
+      <ChatWidget />
     </div>
-    {/* Floating live-chat button - only renders itself for role === 'customer' */}
-    <ChatWidget />
-  </div>
-);
+  );
+};
 
 // ============================================================
 // ✅ SCROLL TO TOP - Navigation Helper
@@ -173,11 +185,11 @@ function App() {
 
   // Show loader while authentication is being checked
   if (loading) {
-    return <Loader />;
+    return <Loader size="xl" text="Loading your experience..." subtext="Please wait" />;
   }
 
   return (
-    <Suspense fallback={<Loader />}>
+    <Suspense fallback={<Loader size="lg" text="Loading page..." />}>
       <ScrollToTop />
       <Routes>
         {/* ============================================================
