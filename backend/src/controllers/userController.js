@@ -1,4 +1,3 @@
-// ফাইলের একদম উপরে import গুলো এভাবে বদলাও:
 import User from '../models/User.js';
 import Ticket from '../models/Ticket.js';
 import Notification from '../models/Notification.js';
@@ -92,44 +91,6 @@ export const updateProfile = async (req, res, next) => {
 };
 
 // ============================================================
-// ✅ UPLOAD PROFILE PHOTO
-// ============================================================
-
-export const uploadProfilePhoto = async (req, res, next) => {
-  try {
-    if (!req.file) {
-      throw new ApiError(400, 'No file uploaded');
-    }
-
-    const user = await User.findById(req.user.id);
-    if (!user) {
-      throw new ApiError(404, 'User not found');
-    }
-
-    // Delete old avatar from Cloudinary if exists
-    if (user.avatar) {
-      try {
-        const publicId = user.avatar.split('/').pop().split('.')[0];
-        await cloudinary.uploader.destroy(`isp-ticketing/avatars/${publicId}`);
-      } catch (error) {
-        logger.warn('Failed to delete old avatar:', error);
-      }
-    }
-
-    user.avatar = req.file.path;
-    await user.save();
-
-    res.status(200).json(
-      ApiResponse.success({ avatar: user.avatar }, 'Profile photo uploaded successfully')
-    );
-
-    logger.info(`Profile photo uploaded for: ${user.email}`);
-  } catch (error) {
-    next(error);
-  }
-};
-
-// ============================================================
 // ✅ DELETE ACCOUNT
 // ============================================================
 
@@ -142,11 +103,10 @@ export const deleteAccount = async (req, res, next) => {
 
     // Delete user's tickets
     await Ticket.deleteMany({ customer: user._id });
-    
+
     // Delete user's notifications
     await Notification.deleteMany({ user: user._id });
 
-    // Delete avatar from Cloudinary if exists
     // Delete avatar file from local disk if it exists
     if (user.avatar) {
       try {
