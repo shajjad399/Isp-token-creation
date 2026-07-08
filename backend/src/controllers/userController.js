@@ -9,6 +9,43 @@ import path from 'path';
 import fs from 'fs';
 
 // ============================================================
+// ✅ GET PROFILE (with stats)
+// ============================================================
+
+export const getProfile = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.user.id)
+      .select('-password -refreshToken -passwordResetToken -passwordResetExpires');
+
+    if (!user) {
+      throw new ApiError(404, 'User not found');
+    }
+
+    const [totalTickets, openTickets, resolvedTickets, unreadNotifications] = await Promise.all([
+      Ticket.countDocuments({ customer: user._id }),
+      Ticket.countDocuments({ customer: user._id, status: 'open' }),
+      Ticket.countDocuments({ customer: user._id, status: 'resolved' }),
+      Notification.countDocuments({ user: user._id, isRead: false })
+    ]);
+
+    res.status(200).json(
+      ApiResponse.success({
+        user,
+        stats: {
+          totalTickets,
+          openTickets,
+          resolvedTickets,
+          inProgressTickets: totalTickets - openTickets - resolvedTickets,
+          unreadNotifications
+        }
+      }, 'Profile fetched successfully')
+    );
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ============================================================
 // ✅ UPLOAD PROFILE PHOTO
 // ============================================================
 
