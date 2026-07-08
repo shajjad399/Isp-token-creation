@@ -42,10 +42,23 @@ io.on('connection', (socket) => {
   logger.info(`🔌 New client connected: ${socket.id}`);
 
   // Authenticate user
-  socket.on('authenticate', (userId) => {
+  // Frontend sends an object: { userId, role } (see frontend/src/services/socket.js)
+  socket.on('authenticate', (payload) => {
+    const userId = typeof payload === 'string' ? payload : payload?.userId;
+    const role = typeof payload === 'string' ? null : payload?.role;
+
+    if (!userId) return;
+
     userSockets.set(userId, socket.id);
     socket.join(`user_${userId}`);
-    logger.info(`✅ User ${userId} authenticated`);
+
+    // Agents/admins also join the shared "agents" room so they get
+    // live-chat alerts (chat_started) for new incoming chats.
+    if (role === 'agent' || role === 'admin') {
+      socket.join('agents');
+    }
+
+    logger.info(`✅ User ${userId} authenticated (role: ${role || 'unknown'})`);
   });
 
   // Join ticket room
@@ -60,6 +73,35 @@ io.on('connection', (socket) => {
     socket.leave(`ticket_${ticketId}`);
     ticketRooms.delete(socket.id);
     logger.info(`🚪 Socket ${socket.id} left ticket ${ticketId}`);
+  });
+
+  // ============================================================
+  // LIVE CHAT ROOM HANDLING
+  // (chatService.js emits to `chat_${chatId}` — sockets must
+  // actually join that room for those events to reach anyone)
+  // ============================================================
+
+  // Join a chat room
+  socket.on('join_chat', (chatId) => {
+    socket.join(`chat_${chatId}`);
+    logger.info(`💬 Socket ${socket.id} joined chat ${chatId}`);
+  });
+
+  // Leave a chat room
+  socket.on('leave_chat', (chatId) => {
+    socket.leave(`chat_${chatId}`);
+    logger.info(`💬 Socket ${socket.id} left chat ${chatId}`);
+  });
+
+  // Relay typing indicator to everyone else in the chat room
+  socket.on('chat_typing', ({ chatId, userId, name }) => {
+    if (!chatId) return;
+    socket.to(`chat_${chatId}`).emit('chat_typing', { chatId, userId, name });
+  });
+
+  socket.on('chat_stop_typing', ({ chatId, userId }) => {
+    if (!chatId) return;
+    socket.to(`chat_${chatId}`).emit('chat_stop_typing', { chatId, userId });
   });
 
   // Disconnect
