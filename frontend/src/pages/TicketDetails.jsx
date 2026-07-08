@@ -9,6 +9,7 @@ import Badge from '../components/ui/Badge';
 import Button from '../components/ui/Button';
 import Avatar from '../components/ui/Avatar';
 import StatusHistoryTimeline from '../components/tickets/StatusHistoryTimeline';
+import SLACountdown from '../components/tickets/SLACountdown';
 import {
   ArrowLeftIcon,
   TrashIcon,
@@ -306,6 +307,12 @@ const TicketDetails = () => {
             <div>
               <p className="text-sm text-gray-500 dark:text-gray-400">Category</p>
               <Badge variant="info">{ticket.category}</Badge>
+            </div>
+            <div>
+              <p className="text-sm text-gray-500 dark:text-gray-400">SLA</p>
+              <div className="mt-1">
+                <SLACountdown ticket={ticket} />
+              </div>
             </div>
             <div>
               <p className="text-sm text-gray-500 dark:text-gray-400">Created</p>

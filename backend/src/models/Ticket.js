@@ -5,6 +5,7 @@
 // ============================================================
 
 import mongoose from 'mongoose';
+import { getSlaDueDates } from '../constants/sla.js';
 
 // ============================================================
 // TICKET SCHEMA
@@ -243,8 +244,9 @@ ticketSchema.virtual('age').get(function() {
 });
 
 ticketSchema.virtual('isOverdue').get(function() {
-  if (!this.sla.resolutionDueAt) return false;
-  return Date.now() > this.sla.resolutionDueAt.getTime();
+  if (!this.sla?.resolutionDueAt) return false;
+  if (['resolved', 'closed'].includes(this.status)) return false;
+  return Date.now() > new Date(this.sla.resolutionDueAt).getTime();
 });
 
 ticketSchema.virtual('responseTimeInHours').get(function() {
@@ -278,6 +280,29 @@ ticketSchema.index({
 // ============================================================
 
 ticketSchema.pre('save', function(next) {
+  // ✅ Set SLA due dates automatically on ticket creation
+  if (this.isNew && (!this.sla?.responseDueAt || !this.sla?.resolutionDueAt)) {
+    const { responseDueAt, resolutionDueAt } = getSlaDueDates(this.priority, this.createdAt || new Date());
+    this.sla = {
+      ...(this.sla || {}),
+      responseDueAt,
+      resolutionDueAt,
+      breached: false
+    };
+  }
+
+  // ✅ Recalculate resolutionDueAt if priority changes on an open/in-progress ticket
+  if (!this.isNew && this.isModified('priority') && ['open', 'in-progress'].includes(this.status)) {
+    const { responseDueAt, resolutionDueAt } = getSlaDueDates(this.priority, this.createdAt);
+    if (!this.sla.firstResponseAt) this.sla.responseDueAt = responseDueAt;
+    this.sla.resolutionDueAt = resolutionDueAt;
+  }
+
+  // ✅ Mark SLA breached if resolved/closed after the resolution deadline
+  if (this.isModified('status') && ['resolved', 'closed'].includes(this.status) && this.sla?.resolutionDueAt) {
+    this.sla.breached = new Date() > new Date(this.sla.resolutionDueAt);
+  }
+
   // Set resolvedAt when status changes to resolved
   if (this.isModified('status')) {
     if (this.status === 'resolved' && !this.resolvedAt) {

@@ -7,6 +7,7 @@ import Card from '../components/ui/Card';
 import Badge from '../components/ui/Badge';
 import Button from '../components/ui/Button';
 import Avatar from '../components/ui/Avatar';
+import SLACountdown from '../components/tickets/SLACountdown';
 import {
   PlusCircleIcon,
   MagnifyingGlassIcon,
@@ -218,6 +219,7 @@ const Tickets = () => {
                 <th>Title</th>
                 <th>Status</th>
                 <th>Priority</th>
+                <th>SLA</th>
                 <th>Created</th>
                 <th className="text-right">Actions</th>
               </tr>
@@ -276,6 +278,11 @@ const Tickets = () => {
                       <Badge variant={getPriorityBadgeVariant(ticket.priority)}>
                         {ticket.priority}
                       </Badge>
+                    </td>
+
+                    {/* SLA */}
+                    <td>
+                      <SLACountdown ticket={ticket} size="sm" />
                     </td>
 
                     {/* Created */}
