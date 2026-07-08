@@ -133,7 +133,7 @@ const DashboardLayout = ({ children }) => {
   }, [sidebarOpen]);
 
   return (
-    <div className="flex h-screen bg-gray-50 dark:bg-gray-900 overflow-hidden">
+    <div className="flex h-screen app-mesh-bg overflow-hidden">
       {/* Backdrop — mobile/tablet only, closes drawer on tap */}
       <div
         onClick={() => setSidebarOpen(false)}
@@ -146,7 +146,7 @@ const DashboardLayout = ({ children }) => {
 
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         <Navbar onMenuClick={() => setSidebarOpen((prev) => !prev)} />
-        <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-6 bg-gray-50 dark:bg-gray-900">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-6 content-mesh">
           {children}
         </main>
       </div>

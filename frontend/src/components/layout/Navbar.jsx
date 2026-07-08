@@ -26,7 +26,7 @@ const Navbar = ({ onMenuClick }) => {
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
 
   return (
-    <nav className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 md:px-6 py-3">
+    <nav className="glass-panel border-b px-4 md:px-6 py-3">
       <div className="flex justify-between items-center">
         {/* Left Section */}
         <div className="flex items-center space-x-2 md:space-x-4 min-w-0">

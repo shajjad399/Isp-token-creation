@@ -171,6 +171,23 @@
     @apply shadow-sm shadow-gray-200/50 dark:shadow-gray-900/50;
     @apply transition-all duration-300 hover:shadow-lg hover:shadow-gray-300/30 dark:hover:shadow-gray-800/30;
     @apply hover:-translate-y-1;
+    position: relative; /* Added for ::before pseudo-element */
+  }
+
+  .stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    border-radius: 1rem 1rem 0 0;
+    background: linear-gradient(90deg, #3b82f6, #8b5cf6, #ec4899);
+    opacity: 0.9;
+  }
+
+  .dark .stat-card::before {
+    opacity: 0.5;
   }
 
   .stat-card-icon {
@@ -257,6 +274,154 @@
   .glass-dark {
     @apply bg-gray-900/80 backdrop-blur-lg backdrop-saturate-150;
     @apply border border-gray-700/30;
+  }
+
+  /* ============================================================
+     PREMIUM LIGHT MODE — mesh gradient shell + glassmorphism
+     Dark mode is left exactly as-is (solid, already tuned); these
+     classes only add extra polish in light mode via explicit
+     `.dark` overrides that fall back to the previous flat colors.
+     ============================================================ */
+
+  /* App shell background — soft colored blobs instead of flat gray.
+     Use on the outermost h-screen container of a layout. */
+  .app-mesh-bg {
+    @apply dark:bg-gray-900;
+    background-color: #f8fafc;
+    background-image:
+      radial-gradient(1100px circle at 6% -8%, rgba(59, 130, 246, 0.14), transparent 55%),
+      radial-gradient(900px circle at 100% -6%, rgba(139, 92, 246, 0.13), transparent 55%),
+      radial-gradient(900px circle at 100% 104%, rgba(236, 72, 153, 0.10), transparent 55%),
+      radial-gradient(900px circle at -4% 104%, rgba(14, 165, 233, 0.11), transparent 55%);
+  }
+
+  .dark .app-mesh-bg {
+    background-image: none;
+  }
+
+  /* Frosted glass panel for sidebars/headers — solid in dark mode,
+     translucent + blurred in light mode so the mesh shows through. */
+  .glass-panel {
+    @apply bg-white/75 dark:bg-gray-800 border-gray-200/70 dark:border-gray-700;
+    backdrop-filter: blur(20px) saturate(160%);
+    -webkit-backdrop-filter: blur(20px) saturate(160%);
+  }
+
+  .dark .glass-panel {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  /* Content area that sits over the mesh background — transparent so
+     the gradient blobs remain visible behind cards/tables. */
+  .content-mesh {
+    @apply bg-transparent dark:bg-gray-900;
+  }
+
+  /* A shimmering placeholder system used while real data loads,
+     instead of a plain spinner. Mirrors the shape of the content
+     that's about to appear so the layout doesn't jump on load. */
+  .skeleton {
+    @apply relative overflow-hidden rounded-xl bg-gray-200/80 dark:bg-gray-700/60;
+  }
+
+  .skeleton::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.45),
+      transparent
+    );
+    animation: shimmer-sweep 1.8s ease-in-out infinite;
+  }
+
+  .dark .skeleton::after {
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.08),
+      transparent
+    );
+  }
+
+  @keyframes shimmer-sweep {
+    100% {
+      transform: translateX(100%);
+    }
+  }
+
+  /* Slim indeterminate progress bar — sits at the very top of a page
+     while premium loading states are active (a subtle "app is working"
+     cue, on top of the shape-matching skeleton below it). */
+  .premium-loading-bar {
+    @apply relative h-1 w-full overflow-hidden rounded-full bg-gray-200/70 dark:bg-gray-700/50;
+  }
+
+  .premium-loading-bar::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    width: 40%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+    animation: loading-bar-slide 1.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  }
+
+  @keyframes loading-bar-slide {
+    0% {
+      transform: translateX(-120%);
+    }
+    100% {
+      transform: translateX(350%);
+    }
+  }
+
+  /* Colored icon skeleton — a soft tinted placeholder (instead of flat
+     gray) for the spot where a stat card's gradient icon will render. */
+  .skeleton-icon {
+    @apply relative overflow-hidden rounded-2xl;
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.18), rgba(59, 130, 246, 0.12));
+  }
+
+  .dark .skeleton-icon {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.22), rgba(59, 130, 246, 0.14));
+  }
+
+  .skeleton-icon::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), transparent);
+    animation: shimmer-sweep 1.8s ease-in-out infinite;
+  }
+
+  /* Soft ambient glow behind skeleton cards — reads as "premium" rather
+     than a bare gray box while content is still loading. */
+  .skeleton-glow {
+    @apply relative;
+  }
+
+  .skeleton-glow::before {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(
+      135deg,
+      rgba(99, 102, 241, 0.35),
+      rgba(59, 130, 246, 0.1) 40%,
+      transparent 70%
+    );
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
   }
 }
 

@@ -10,6 +10,7 @@ import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../hooks/useAuth';
 import api from '../services/api';
+import UserDashboardSkeleton from '../components/ui/UserDashboardSkeleton';
 import { 
   TicketIcon, 
   CheckCircleIcon, 
@@ -203,19 +204,7 @@ const Dashboard = () => {
 
   // Loading State
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[70vh]">
-        <div className="text-center">
-          <div className="relative">
-            <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="w-8 h-8 border-4 border-purple-600 border-b-transparent rounded-full animate-spin animation-delay-150"></div>
-            </div>
-          </div>
-          <p className="mt-6 text-gray-600 dark:text-gray-400 font-medium">Loading your dashboard...</p>
-        </div>
-      </div>
-    );
+    return <UserDashboardSkeleton />;
   }
 
   // Error State

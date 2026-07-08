@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import AdminLayout from '../../components/admin/AdminLayout';
+import DashboardSkeleton from '../../components/ui/DashboardSkeleton';
 import { adminApi } from '../../services/api';
 import { UsersIcon, TicketIcon, CheckCircleIcon, ClockIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import { Link } from 'react-router-dom';
@@ -57,12 +58,7 @@ const AdminDashboard = () => {
   if (loading) {
     return (
       <AdminLayout>
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-4 text-gray-600 dark:text-gray-400">Loading stats...</p>
-          </div>
-        </div>
+        <DashboardSkeleton />
       </AdminLayout>
     );
   }

@@ -36,14 +36,14 @@ const Sidebar = ({ isOpen = false, onClose = () => {} }) => {
       className={`
         fixed inset-y-0 left-0 z-40 w-72 max-w-[85vw]
         md:static md:z-auto md:w-64 md:max-w-none md:translate-x-0
-        bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700
+        glass-panel border-r
         h-screen flex flex-col
         transform transition-transform duration-300 ease-in-out will-change-transform
         ${isOpen ? 'translate-x-0' : '-translate-x-full'}
       `}
     >
       {/* Logo */}
-      <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+      <div className="p-6 border-b border-gray-200/70 dark:border-gray-700 flex items-center justify-between">
         <Link to="/dashboard" className="flex items-center space-x-3 min-w-0">
           <div className="w-10 h-10 flex-shrink-0 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/30">
             <span className="text-white font-bold text-xl">T</span>
