@@ -169,12 +169,17 @@ const LiveChat = () => {
     socket.on('chat_claimed', onClaimed);
     socket.on('chat_new_message_alert', onNewMessageAlert);
     socket.on('chat_closed', onClosed);
+    // ✅ Resync the whole inbox after any (re)connect — covers network
+    // drops, phone screen lock/unlock, and backend restarts, where
+    // events missed while disconnected would otherwise never arrive.
+    socket.on('connect', loadLists);
 
     return () => {
       socket.off('chat_started', onStarted);
       socket.off('chat_claimed', onClaimed);
       socket.off('chat_new_message_alert', onNewMessageAlert);
       socket.off('chat_closed', onClosed);
+      socket.off('connect', loadLists);
     };
   }, [socket, loadLists]);
 

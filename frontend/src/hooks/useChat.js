@@ -51,21 +51,48 @@ export const useChat = ({ chatId: existingChatId, enabled = true } = {}) => {
     loadChat();
   }, [loadChat]);
 
+  // ✅ Quietly resync chat data after a socket reconnect (no loading flicker)
+  useEffect(() => {
+    if (!socket || !existingChatId) return;
+    const resync = async () => {
+      try {
+        const res = await api.get(`/chats/${existingChatId}`);
+        if (res.data?.success) setChat(res.data.data);
+      } catch (error) {
+        console.error('Failed to resync chat after reconnect:', error);
+      }
+    };
+    socket.on('connect', resync);
+    return () => socket.off('connect', resync);
+  }, [socket, existingChatId]);
+
   // ============================================================
   // ✅ JOIN / LEAVE THE CHAT ROOM
   // ============================================================
   useEffect(() => {
     if (!socket || !chatId) return;
-    if (joinedRoomRef.current === chatId) return;
 
-    if (joinedRoomRef.current) {
-      socket.emit('leave_chat', joinedRoomRef.current);
+    const join = () => {
+      socket.emit('join_chat', chatId);
+      joinedRoomRef.current = chatId;
+    };
+
+    if (joinedRoomRef.current !== chatId) {
+      if (joinedRoomRef.current) {
+        socket.emit('leave_chat', joinedRoomRef.current);
+      }
+      join();
     }
 
-    socket.emit('join_chat', chatId);
-    joinedRoomRef.current = chatId;
+    // ✅ Re-join this room every time the socket (re)connects — a dropped
+    // connection (mobile network switch, tab backgrounded, server cold
+    // start) resets server-side room membership even though the client
+    // reconnects automatically, so without this the chat silently stops
+    // receiving live messages until the user reopens it.
+    socket.on('connect', join);
 
     return () => {
+      socket.off('connect', join);
       socket.emit('leave_chat', chatId);
       joinedRoomRef.current = null;
     };
