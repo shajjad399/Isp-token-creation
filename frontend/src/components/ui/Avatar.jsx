@@ -1,7 +1,14 @@
 // frontend/src/components/ui/Avatar.jsx
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 
 const Avatar = ({ name, src, size = 'md', className = '', onClick }) => {
+  const [imgError, setImgError] = useState(false);
+
+  // Reset error state whenever a new src is provided (e.g. after re-upload)
+  useEffect(() => {
+    setImgError(false);
+  }, [src]);
+
   const sizes = {
     sm: 'w-8 h-8 text-xs',
     md: 'w-10 h-10 text-sm',
@@ -29,13 +36,14 @@ const Avatar = ({ name, src, size = 'md', className = '', onClick }) => {
     return colors[index];
   };
 
-  if (src) {
+  if (src && !imgError) {
     return (
       <img
         src={src}
         alt={name}
         className={`rounded-full object-cover ${sizes[size]} ${className}`}
         onClick={onClick}
+        onError={() => setImgError(true)}
       />
     );
   }

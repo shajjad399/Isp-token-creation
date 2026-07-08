@@ -7,7 +7,7 @@
 // ============================================================
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import api from '../services/api';
+import api, { getFileUrl } from '../services/api';
 import { useSocket } from '../context/SocketContext';
 import { useAuth } from '../hooks/useAuth';
 import { useChat } from '../hooks/useChat';
@@ -66,7 +66,7 @@ const ChatPanel = ({ chatId, onClaimed }) => {
     <div className="flex-1 flex flex-col h-full">
       <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Avatar name={chat.customer?.name} src={chat.customer?.avatar} />
+          <Avatar name={chat.customer?.name} src={getFileUrl(chat.customer?.avatar)} />
           <div>
             <p className="font-semibold text-gray-800 dark:text-white">{chat.customer?.name}</p>
             <p className="text-xs text-gray-500 dark:text-gray-400">{chat.customer?.email}</p>
@@ -208,7 +208,7 @@ const LiveChat = () => {
                 selectedId === c._id ? 'bg-blue-50 dark:bg-blue-900/20' : ''
               }`}
             >
-              <Avatar name={c.customer?.name} src={c.customer?.avatar} size="sm" />
+              <Avatar name={c.customer?.name} src={getFileUrl(c.customer?.avatar)} size="sm" />
               <div className="min-w-0">
                 <p className="text-sm font-medium text-gray-800 dark:text-white truncate">{c.customer?.name}</p>
                 <p className="text-xs text-gray-500 truncate">{c.lastMessagePreview || 'New chat'}</p>
@@ -230,7 +230,7 @@ const LiveChat = () => {
                 selectedId === c._id ? 'bg-blue-50 dark:bg-blue-900/20' : ''
               }`}
             >
-              <Avatar name={c.customer?.name} src={c.customer?.avatar} size="sm" />
+              <Avatar name={c.customer?.name} src={getFileUrl(c.customer?.avatar)} size="sm" />
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-gray-800 dark:text-white truncate">{c.customer?.name}</p>
                 <p className="text-xs text-gray-500 truncate">{c.lastMessagePreview}</p>

@@ -4,6 +4,7 @@ import Card, { CardBody, CardHeader } from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import Avatar from '../components/ui/Avatar';
+import ImageCropModal from '../components/ui/ImageCropModal';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import api, { getFileUrl } from '../services/api';
@@ -13,13 +14,17 @@ const Profile = () => {
   const { user, logout, login } = useAuth();
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState(user?.avatar || '');
   const [formData, setFormData] = useState({
     name: user?.name || '',
     phone: user?.phone || '',
-    bio: user?.bio || '',
-    avatar: user?.avatar || ''
+    bio: user?.bio || ''
   });
   const fileInputRef = useRef(null);
+
+  // Cropper state
+  const [cropModalOpen, setCropModalOpen] = useState(false);
+  const [selectedImageSrc, setSelectedImageSrc] = useState(null);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -29,7 +34,14 @@ const Profile = () => {
     e.preventDefault();
     setLoading(true);
     try {
-      await api.put('/users/profile', formData);
+      // ✅ Only send editable text fields here — avatar is uploaded through
+      // its own endpoint (/users/profile/photo). Sending the stored avatar
+      // path back through this form used to fail backend validation.
+      await api.put('/users/profile', {
+        name: formData.name,
+        phone: formData.phone,
+        bio: formData.bio
+      });
       toast.success('Profile updated successfully!');
       // Refresh user data
       const response = await api.get('/auth/profile');
@@ -46,36 +58,50 @@ const Profile = () => {
     }
   };
 
-  const handlePhotoUpload = async (e) => {
+  // Step 1: user picks a file -> open the crop modal (no upload yet)
+  const handleFileSelect = (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
-    // Validate file type
     if (!file.type.startsWith('image/')) {
       toast.error('Please upload an image file');
       return;
     }
 
-    // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
       toast.error('File size must be less than 5MB');
       return;
     }
 
-    const formData = new FormData();
-    formData.append('avatar', file);
+    const reader = new FileReader();
+    reader.onload = () => {
+      setSelectedImageSrc(reader.result);
+      setCropModalOpen(true);
+    };
+    reader.readAsDataURL(file);
+
+    // reset input so selecting the same file again still fires onChange
+    e.target.value = '';
+  };
+
+  // Step 2: user confirms crop/zoom in the modal -> upload the cropped image
+  const handleCropComplete = async (croppedBlob) => {
+    setCropModalOpen(false);
+
+    const uploadData = new FormData();
+    uploadData.append('avatar', croppedBlob, 'avatar.jpg');
 
     try {
       setUploading(true);
-      const response = await api.post('/users/profile/photo', formData, {
+      const response = await api.post('/users/profile/photo', uploadData, {
         headers: {
           'Content-Type': 'multipart/form-data'
         }
       });
-      
+
       toast.success('Profile photo updated!');
-      setFormData(prev => ({ ...prev, avatar: response.data.data.avatar }));
-      
+      setAvatarUrl(response.data.data.avatar);
+
       // Refresh user data
       const userResponse = await api.get('/auth/profile');
       if (userResponse.data?.success) {
@@ -87,6 +113,7 @@ const Profile = () => {
       toast.error(error.response?.data?.message || 'Failed to upload photo');
     } finally {
       setUploading(false);
+      setSelectedImageSrc(null);
     }
   };
 
@@ -124,7 +151,7 @@ const Profile = () => {
             <div className="relative">
               <Avatar 
                 name={user?.name} 
-                src={getFileUrl(formData.avatar || user?.avatar)} 
+                src={getFileUrl(avatarUrl)} 
                 size="2xl" 
                 className="border-4 border-blue-500"
               />
@@ -140,7 +167,7 @@ const Profile = () => {
                 ref={fileInputRef}
                 type="file"
                 accept="image/*"
-                onChange={handlePhotoUpload}
+                onChange={handleFileSelect}
                 className="hidden"
               />
             </div>
@@ -210,6 +237,16 @@ const Profile = () => {
           </form>
         </CardBody>
       </Card>
+
+      <ImageCropModal
+        isOpen={cropModalOpen}
+        imageSrc={selectedImageSrc}
+        onClose={() => {
+          setCropModalOpen(false);
+          setSelectedImageSrc(null);
+        }}
+        onCropComplete={handleCropComplete}
+      />
     </motion.div>
   );
 };

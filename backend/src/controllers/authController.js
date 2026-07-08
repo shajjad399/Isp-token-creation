@@ -392,9 +392,9 @@ export const updateProfile = async (req, res, next) => {
     }
 
     if (name) user.name = name;
-    if (phone) user.phone = phone;
+    if (phone !== undefined) user.phone = phone;
     if (avatar) user.avatar = avatar;
-    if (bio) user.bio = bio;
+    if (bio !== undefined) user.bio = bio;
     if (address) user.address = address;
     if (preferences) user.preferences = { ...user.preferences, ...preferences };
 

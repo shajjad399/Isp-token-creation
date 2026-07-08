@@ -5,6 +5,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../hooks/useTheme';
 import { useNotifications } from '../../hooks/useNotifications';
 import Avatar from '../ui/Avatar';
+import { getFileUrl } from '../../services/api';
 import {
   BellIcon,
   MoonIcon,
@@ -150,7 +151,7 @@ const Navbar = () => {
           {/* User Menu */}
           <Menu as="div" className="relative">
             <Menu.Button className="flex items-center space-x-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl p-2 transition-colors">
-              <Avatar name={user?.name} size="sm" />
+              <Avatar name={user?.name} src={getFileUrl(user?.avatar)} size="sm" />
               <span className="hidden md:block text-gray-700 dark:text-gray-300 text-sm font-medium">
                 {user?.name}
               </span>

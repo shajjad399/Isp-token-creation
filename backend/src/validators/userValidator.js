@@ -16,16 +16,26 @@ export const updateProfileSchema = Joi.object({
   
   phone: Joi.string()
     .pattern(/^\+?[\d\s-]{10,}$/)
+    .allow('')
     .optional()
     .messages({
       'string.pattern.base': 'Please enter a valid phone number'
     }),
-  
-  avatar: Joi.string()
-    .uri()
+
+  bio: Joi.string()
+    .max(500)
+    .allow('')
     .optional()
     .messages({
-      'string.uri': 'Avatar must be a valid URL'
+      'string.max': 'Bio cannot exceed 500 characters'
+    }),
+  
+  avatar: Joi.string()
+    .pattern(/^(https?:\/\/.+|\/uploads\/.+)$/)
+    .allow('', null)
+    .optional()
+    .messages({
+      'string.pattern.base': 'Avatar must be a valid URL or file path'
     })
 });
 
@@ -92,7 +102,8 @@ export const updateUserSchema = Joi.object({
     .optional(),
   
   avatar: Joi.string()
-    .uri()
+    .pattern(/^(https?:\/\/.+|\/uploads\/.+)$/)
+    .allow('', null)
     .optional()
 });
 
