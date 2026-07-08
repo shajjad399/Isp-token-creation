@@ -27,6 +27,7 @@ import Tickets from './pages/Tickets';
 import CreateTicket from './pages/CreateTicket';
 import TicketDetails from './pages/TicketDetails';
 import Profile from './pages/Profile';
+import LiveChat from './pages/LiveChat';
 
 // Admin Pages (Lazy Loaded for performance)
 const AdminLogin = lazy(() => import('./pages/admin/AdminLogin'));
@@ -41,6 +42,7 @@ const AdminEditUser = lazy(() => import('./pages/admin/AdminEditUser'));
 
 import Navbar from './components/layout/Navbar';
 import Sidebar from './components/layout/Sidebar';
+import ChatWidget from './components/chat/ChatWidget';
 
 // ============================================================
 // ✅ LOADING COMPONENT - Premium Design
@@ -99,6 +101,19 @@ const ProtectedRoute = ({ children }) => {
 };
 
 /**
+ * Agent Route Guard
+ * Only allows users with 'agent' or 'admin' role (the live-chat inbox)
+ */
+const AgentRoute = ({ children }) => {
+  const { user } = useAuth();
+  if (!user) return <Navigate to="/login" replace />;
+  if (user.role !== 'agent' && user.role !== 'admin') {
+    return <Navigate to="/dashboard" replace />;
+  }
+  return children;
+};
+
+/**
  * Public Route Guard
  * Redirects authenticated users away from public pages
  */
@@ -124,6 +139,8 @@ const DashboardLayout = ({ children }) => (
         {children}
       </main>
     </div>
+    {/* Floating live-chat button - only renders itself for role === 'customer' */}
+    <ChatWidget />
   </div>
 );
 
@@ -278,6 +295,14 @@ function App() {
               <Profile />
             </DashboardLayout>
           </ProtectedRoute>
+        } />
+
+        <Route path="/live-chat" element={
+          <AgentRoute>
+            <DashboardLayout>
+              <LiveChat />
+            </DashboardLayout>
+          </AgentRoute>
         } />
 
         {/* ============================================================

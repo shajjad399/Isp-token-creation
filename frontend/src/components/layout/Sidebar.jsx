@@ -10,7 +10,8 @@ import {
   ChartBarIcon,
   Cog6ToothIcon,
   ArrowRightOnRectangleIcon,
-  ShieldCheckIcon
+  ShieldCheckIcon,
+  ChatBubbleLeftRightIcon
 } from '@heroicons/react/24/outline';
 
 const Sidebar = () => {
@@ -23,6 +24,9 @@ const Sidebar = () => {
     { path: '/dashboard', label: 'Dashboard', icon: HomeIcon },
     { path: '/tickets', label: 'Tickets', icon: TicketIcon },
     { path: '/tickets/create', label: 'Create Ticket', icon: PlusCircleIcon },
+    ...(user?.role === 'agent' || user?.role === 'admin'
+      ? [{ path: '/live-chat', label: 'Live Chat', icon: ChatBubbleLeftRightIcon }]
+      : []),
     { path: '/profile', label: 'Profile', icon: UserIcon },
   ];
 
