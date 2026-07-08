@@ -49,6 +49,7 @@ const staggerChildren = {
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -57,11 +58,26 @@ const Login = () => {
   const { login, clearError } = useAuth();
   const navigate = useNavigate();
 
+  // ✅ Load remembered credentials on mount
+  useEffect(() => {
+    const saved = localStorage.getItem('rememberedCredentials');
+    if (saved) {
+      try {
+        const { email: savedEmail, password: savedPassword } = JSON.parse(saved);
+        setEmail(savedEmail || '');
+        setPassword(savedPassword || '');
+        setRememberMe(true);
+      } catch {
+        localStorage.removeItem('rememberedCredentials');
+      }
+    }
+  }, []);
+
   // Auto-focus email on mount
   useEffect(() => {
     const timer = setTimeout(() => {
       const input = document.querySelector('input[type="email"]');
-      if (input) input.focus();
+      if (input && !input.value) input.focus();
     }, 500);
     return () => clearTimeout(timer);
   }, []);
@@ -101,6 +117,13 @@ const Login = () => {
     setLoading(false);
     
     if (result.success) {
+      // ✅ Save or clear remembered credentials based on checkbox
+      if (rememberMe) {
+        localStorage.setItem('rememberedCredentials', JSON.stringify({ email, password }));
+      } else {
+        localStorage.removeItem('rememberedCredentials');
+      }
+
       const userData = JSON.parse(localStorage.getItem('user'));
       if (userData?.role === 'admin') {
         navigate('/admin/dashboard');
@@ -250,6 +273,8 @@ const Login = () => {
                 <label className="flex items-center cursor-pointer group">
                   <input 
                     type="checkbox" 
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
                     className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
                   />
                   <span className="ml-2 text-sm text-gray-600 dark:text-gray-400 group-hover:text-gray-800 dark:group-hover:text-gray-200 transition-colors">

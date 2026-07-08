@@ -110,6 +110,31 @@ const ticketSchema = new mongoose.Schema({
     }
   }],
   
+  // Status change history
+  statusHistory: [{
+    oldStatus: {
+      type: String,
+      default: null
+    },
+    newStatus: {
+      type: String,
+      required: true
+    },
+    changedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    note: {
+      type: String,
+      trim: true,
+      default: null
+    },
+    changedAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
+
   // Attachments
   attachments: [{
     filename: {
@@ -350,6 +375,24 @@ ticketSchema.methods.reopen = function() {
  */
 ticketSchema.methods.isActive = function() {
   return this.status !== 'closed';
+};
+
+/**
+ * Push a status change entry into statusHistory.
+ * Accepts either a full user object (req.user) or a user id for `user`.
+ */
+ticketSchema.methods.pushStatusHistory = function({ oldStatus = null, newStatus, user, note = null } = {}) {
+  const changedBy = user && typeof user === 'object' ? (user._id || user.id) : user;
+
+  this.statusHistory.push({
+    oldStatus,
+    newStatus,
+    changedBy,
+    note,
+    changedAt: new Date()
+  });
+
+  return this;
 };
 
 // ============================================================
