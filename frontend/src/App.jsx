@@ -37,6 +37,9 @@ const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'));
 const AdminUsers = lazy(() => import('./pages/admin/AdminUsers'));
 const AdminAddUser = lazy(() => import('./pages/admin/AdminAddUser'));
 const AdminEditUser = lazy(() => import('./pages/admin/AdminEditUser'));
+// ✅ Billing & Payments (Admin) — notun add kora hoyeche (Billing Step 2)
+const AdminInvoices = lazy(() => import('./pages/admin/AdminInvoices'));
+const AdminCreateInvoice = lazy(() => import('./pages/admin/AdminCreateInvoice'));
 
 // ============================================================
 // ✅ LAYOUT COMPONENTS
@@ -264,6 +267,19 @@ function App() {
         <Route path="/admin/users/edit/:id" element={
           <AdminRoute>
             <AdminEditUser />
+          </AdminRoute>
+        } />
+
+        {/* ✅ Billing & Payments (Admin) — notun add kora hoyeche (Billing Step 2) */}
+        <Route path="/admin/billing" element={
+          <AdminRoute>
+            <AdminInvoices />
+          </AdminRoute>
+        } />
+
+        <Route path="/admin/billing/create" element={
+          <AdminRoute>
+            <AdminCreateInvoice />
           </AdminRoute>
         } />
 

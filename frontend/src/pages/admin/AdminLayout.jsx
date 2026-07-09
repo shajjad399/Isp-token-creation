@@ -7,6 +7,7 @@ import {
   HomeIcon,
   UsersIcon,
   TicketIcon,
+  CreditCardIcon,
   Cog6ToothIcon,
   ArrowRightOnRectangleIcon,
   MoonIcon,
@@ -32,12 +33,14 @@ const AdminLayout = ({ children }) => {
   const menuItems = [
     { path: '/admin/dashboard', label: 'Dashboard', icon: HomeIcon },
     { path: '/admin/users', label: 'Users', icon: UsersIcon },
+    // ✅ Billing & Payments — notun add kora hoyeche (Billing Step 2)
+    { path: '/admin/billing', label: 'Billing', icon: CreditCardIcon },
     { path: '/live-chat', label: 'Live Chat', icon: ChatBubbleLeftRightIcon },
     { path: '/profile', label: 'Profile', icon: UserIcon },
   ];
 
   return (
-    <div className="flex h-screen app-mesh-bg overflow-hidden">
+    <div className="flex h-screen bg-gray-100 dark:bg-gray-900 overflow-hidden">
       {/* Backdrop — mobile/tablet only, shown while sidebar sheet is open */}
       {sidebarOpen && (
         <div
@@ -51,15 +54,15 @@ const AdminLayout = ({ children }) => {
         className={`
           fixed inset-y-0 left-0 z-40 w-72 max-w-[85vw]
           md:static md:z-auto md:w-64 md:max-w-none md:translate-x-0
-          glass-panel shadow-xl border-r
+          bg-white dark:bg-gray-800 shadow-xl border-r border-gray-200 dark:border-gray-700
           flex flex-col h-screen
           transform transition-transform duration-300 ease-in-out will-change-transform
           ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
         `}
       >
-        <div className="p-6 border-b border-gray-200/70 dark:border-gray-700 flex items-center justify-between">
+        <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
           <div className="min-w-0">
-            <h1 className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600 dark:text-white dark:bg-none truncate">ISP Admin</h1>
+            <h1 className="text-xl font-bold text-gray-800 dark:text-white truncate">ISP Admin</h1>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 truncate">{user?.email}</p>
           </div>
           {/* Close button — mobile/tablet sheet only */}
@@ -105,7 +108,7 @@ const AdminLayout = ({ children }) => {
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-        <header className="glass-panel shadow-sm px-4 md:px-6 py-4 border-b">
+        <header className="bg-white dark:bg-gray-800 shadow-sm px-4 md:px-6 py-4 border-b border-gray-200 dark:border-gray-700">
           <div className="flex justify-between items-center gap-2">
             <div className="flex items-center gap-2 min-w-0">
               {/* Menu button (3-line icon) — mobile/tablet only, opens the sidebar sheet */}
@@ -126,7 +129,7 @@ const AdminLayout = ({ children }) => {
           </div>
         </header>
         
-        <main className="flex-1 overflow-y-auto p-4 md:p-6 content-mesh">
+        <main className="flex-1 overflow-y-auto p-4 md:p-6 bg-gray-50 dark:bg-gray-900">
           {children}
         </main>
       </div>
