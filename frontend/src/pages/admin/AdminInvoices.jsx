@@ -17,12 +17,12 @@ import {
   BanknotesIcon,
   XCircleIcon,
   TrashIcon,
+  EyeIcon,
   ReceiptPercentIcon
 } from '@heroicons/react/24/outline';
 import Button from '../../components/ui/Button';
-import Modal from '../../components/ui/Modal';
-import Input from '../../components/ui/Input';
-import Select from '../../components/ui/Select';
+// ✅ Shared record-payment modal — notun add kora hoyeche (Billing Step 3)
+import RecordPaymentModal from '../../components/billing/RecordPaymentModal';
 
 // ============================================================
 // HELPERS
@@ -51,98 +51,6 @@ const STATUS_LABEL = {
   overdue: 'Overdue',
   cancelled: 'Cancelled',
   draft: 'Draft'
-};
-
-const PAYMENT_METHODS = [
-  { value: 'cash', label: 'Cash' },
-  { value: 'bkash', label: 'bKash' },
-  { value: 'nagad', label: 'Nagad' },
-  { value: 'rocket', label: 'Rocket' },
-  { value: 'bank', label: 'Bank Transfer' },
-  { value: 'card', label: 'Card' },
-  { value: 'other', label: 'Other' }
-];
-
-// ============================================================
-// RECORD PAYMENT MODAL
-// ============================================================
-
-const RecordPaymentModal = ({ invoice, onClose, onSuccess }) => {
-  const dueAmount = invoice ? invoice.totalAmount - invoice.amountPaid : 0;
-  const [form, setForm] = useState({ amount: dueAmount, method: 'cash', reference: '', note: '' });
-  const [submitting, setSubmitting] = useState(false);
-
-  useEffect(() => {
-    if (invoice) {
-      setForm({ amount: invoice.totalAmount - invoice.amountPaid, method: 'cash', reference: '', note: '' });
-    }
-  }, [invoice]);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!form.amount || form.amount <= 0) {
-      toast.error('Enter a valid payment amount');
-      return;
-    }
-    setSubmitting(true);
-    try {
-      await api.patch(`/billing/invoices/${invoice._id}/payment`, {
-        amount: Number(form.amount),
-        method: form.method,
-        reference: form.reference || undefined,
-        note: form.note || undefined
-      });
-      toast.success('Payment recorded successfully');
-      onSuccess();
-    } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to record payment');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  if (!invoice) return null;
-
-  return (
-    <Modal isOpen={!!invoice} onClose={onClose} title={`Record Payment — ${invoice.invoiceNumber}`} size="sm">
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <p className="text-sm text-gray-500 dark:text-gray-400">
-          Due amount: <span className="font-semibold text-gray-800 dark:text-white">{formatMoney(dueAmount)}</span>
-        </p>
-        <Input
-          label="Amount"
-          type="number"
-          min="0.01"
-          step="0.01"
-          required
-          value={form.amount}
-          onChange={(e) => setForm({ ...form, amount: e.target.value })}
-        />
-        <Select
-          label="Payment Method"
-          options={PAYMENT_METHODS}
-          value={form.method}
-          onChange={(e) => setForm({ ...form, method: e.target.value })}
-        />
-        <Input
-          label="Reference / Transaction ID"
-          placeholder="Optional"
-          value={form.reference}
-          onChange={(e) => setForm({ ...form, reference: e.target.value })}
-        />
-        <Input
-          label="Note"
-          placeholder="Optional"
-          value={form.note}
-          onChange={(e) => setForm({ ...form, note: e.target.value })}
-        />
-        <div className="flex justify-end gap-3 pt-2">
-          <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
-          <Button type="submit" loading={submitting}>Record Payment</Button>
-        </div>
-      </form>
-    </Modal>
-  );
 };
 
 // ============================================================
@@ -299,7 +207,14 @@ const AdminInvoices = () => {
 
                       return (
                         <tr key={invoice._id}>
-                          <td className="font-medium">{invoice.invoiceNumber}</td>
+                          <td className="font-medium">
+                            <button
+                              onClick={() => navigate(`/admin/billing/${invoice._id}`)}
+                              className="text-blue-600 dark:text-blue-400 hover:underline"
+                            >
+                              {invoice.invoiceNumber}
+                            </button>
+                          </td>
                           <td>
                             <div className="text-gray-800 dark:text-gray-200">{invoice.customer?.name || '—'}</div>
                             <div className="text-xs text-gray-500 dark:text-gray-400">{invoice.customer?.email}</div>
@@ -316,6 +231,13 @@ const AdminInvoices = () => {
                           <td className="text-gray-500 dark:text-gray-400">{formatDate(invoice.dueDate)}</td>
                           <td>
                             <div className="flex items-center justify-end gap-2">
+                              <button
+                                onClick={() => navigate(`/admin/billing/${invoice._id}`)}
+                                className="p-1.5 text-gray-400 hover:text-blue-600 transition-colors"
+                                title="View Invoice"
+                              >
+                                <EyeIcon className="h-5 w-5" />
+                              </button>
                               {canPay && (
                                 <button
                                   onClick={() => setPayingInvoice(invoice)}

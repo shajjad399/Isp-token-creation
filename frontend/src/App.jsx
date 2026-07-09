@@ -30,6 +30,8 @@ import Profile from './pages/Profile';
 import LiveChat from './pages/LiveChat';
 // ✅ Billing & Payments — notun add kora hoyeche (Billing Step 1)
 import Billing from './pages/Billing';
+// ✅ Invoice Detail / Receipt — notun add kora hoyeche (Billing Step 3)
+import InvoiceDetail from './pages/InvoiceDetail';
 
 // Admin Pages (Lazy Loaded for performance)
 const AdminLogin = lazy(() => import('./pages/admin/AdminLogin'));
@@ -40,6 +42,8 @@ const AdminEditUser = lazy(() => import('./pages/admin/AdminEditUser'));
 // ✅ Billing & Payments (Admin) — notun add kora hoyeche (Billing Step 2)
 const AdminInvoices = lazy(() => import('./pages/admin/AdminInvoices'));
 const AdminCreateInvoice = lazy(() => import('./pages/admin/AdminCreateInvoice'));
+// ✅ Invoice Detail / Receipt (Admin) — notun add kora hoyeche (Billing Step 3)
+const AdminInvoiceDetail = lazy(() => import('./pages/admin/AdminInvoiceDetail'));
 
 // ============================================================
 // ✅ LAYOUT COMPONENTS
@@ -283,6 +287,13 @@ function App() {
           </AdminRoute>
         } />
 
+        {/* ✅ Invoice Detail / Receipt (Admin) — notun add kora hoyeche (Billing Step 3) */}
+        <Route path="/admin/billing/:id" element={
+          <AdminRoute>
+            <AdminInvoiceDetail />
+          </AdminRoute>
+        } />
+
         {/* ============================================================
             USER PROTECTED ROUTES
             ============================================================ */}
@@ -332,6 +343,15 @@ function App() {
           <ProtectedRoute>
             <DashboardLayout>
               <Billing />
+            </DashboardLayout>
+          </ProtectedRoute>
+        } />
+
+        {/* ✅ Invoice Detail / Receipt — notun add kora hoyeche (Billing Step 3) */}
+        <Route path="/billing/:id" element={
+          <ProtectedRoute>
+            <DashboardLayout>
+              <InvoiceDetail />
             </DashboardLayout>
           </ProtectedRoute>
         } />

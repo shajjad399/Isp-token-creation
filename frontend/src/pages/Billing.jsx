@@ -9,6 +9,7 @@
 // ============================================================
 
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { useBilling } from '../hooks/useBilling';
@@ -99,6 +100,7 @@ const SummaryCard = ({ title, value, icon: Icon, color, subtitle, delay = 0 }) =
 // ============================================================
 
 const InvoiceRow = ({ invoice, onPayNow, index }) => {
+  const navigate = useNavigate();
   const dueAmount = invoice.totalAmount - invoice.amountPaid;
   const canPay = ['unpaid', 'partially_paid', 'overdue'].includes(invoice.status);
 
@@ -110,16 +112,21 @@ const InvoiceRow = ({ invoice, onPayNow, index }) => {
     >
       <Card className="p-4 md:p-5" hover>
         <div className="flex flex-col md:flex-row md:items-center gap-4">
-          {/* Invoice identity */}
-          <div className="flex-1 min-w-0">
+          {/* Invoice identity — click to open the full receipt (Billing Step 3) */}
+          <button
+            onClick={() => navigate(`/billing/${invoice._id}`)}
+            className="flex-1 min-w-0 text-left"
+          >
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-semibold text-gray-800 dark:text-white">{invoice.invoiceNumber}</span>
+              <span className="font-semibold text-gray-800 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+                {invoice.invoiceNumber}
+              </span>
               <Badge variant={STATUS_VARIANT[invoice.status]}>{STATUS_LABEL[invoice.status]}</Badge>
             </div>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
               {formatDate(invoice.billingPeriod?.start)} – {formatDate(invoice.billingPeriod?.end)}
             </p>
-          </div>
+          </button>
 
           {/* Due date */}
           <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300 md:w-40">
@@ -137,17 +144,21 @@ const InvoiceRow = ({ invoice, onPayNow, index }) => {
 
           {/* Actions */}
           <div className="flex items-center gap-2 md:w-40 md:justify-end">
-            {canPay ? (
+            {canPay && (
               <Button size="sm" onClick={() => onPayNow(invoice)} className="whitespace-nowrap">
                 <CreditCardIcon className="h-4 w-4 mr-1.5" />
                 Pay Now
               </Button>
-            ) : (
-              <Button size="sm" variant="ghost" className="whitespace-nowrap">
-                <ArrowDownTrayIcon className="h-4 w-4 mr-1.5" />
-                Receipt
-              </Button>
             )}
+            <Button
+              size="sm"
+              variant="ghost"
+              className="whitespace-nowrap"
+              onClick={() => navigate(`/billing/${invoice._id}`)}
+            >
+              <ArrowDownTrayIcon className="h-4 w-4 mr-1.5" />
+              Receipt
+            </Button>
           </div>
         </div>
       </Card>
