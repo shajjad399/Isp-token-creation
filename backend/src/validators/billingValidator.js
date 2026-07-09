@@ -77,3 +77,11 @@ export const recordPaymentSchema = Joi.object({
 export const cancelInvoiceSchema = Joi.object({
   reason: Joi.string().trim().max(300).allow('', null)
 });
+
+/**
+ * Duplicate / generate-recurring invoice validation schema (Admin only)
+ * Used to spin off "next month's" invoice from an existing one.
+ */
+export const duplicateInvoiceSchema = Joi.object({
+  dueInDays: Joi.number().integer().min(1).max(90).default(15)
+});

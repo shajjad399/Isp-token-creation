@@ -12,7 +12,9 @@ import {
   updateInvoice,
   deleteInvoice,
   recordPayment,
-  cancelInvoice
+  cancelInvoice,
+  getBillingStats,
+  duplicateInvoice
 } from '../controllers/billingController.js';
 import { auth } from '../middlewares/auth.js';
 import { role } from '../middlewares/role.js';
@@ -21,7 +23,8 @@ import {
   createInvoiceSchema,
   updateInvoiceSchema,
   recordPaymentSchema,
-  cancelInvoiceSchema
+  cancelInvoiceSchema,
+  duplicateInvoiceSchema
 } from '../validators/billingValidator.js';
 
 const router = express.Router();
@@ -35,6 +38,13 @@ router.use(auth);
  * @access  Private (customer sees own; admin/agent can pass ?customer=<id>)
  */
 router.get('/invoices/summary', getBillingSummary);
+
+/**
+ * @route   GET /api/v1/billing/stats
+ * @desc    Revenue chart data, status breakdown, collection rate, overdue watchlist
+ * @access  Private/Admin+Agent — Billing Step 4
+ */
+router.get('/stats', role(['admin', 'agent']), getBillingStats);
 
 /**
  * @route   GET /api/v1/billing/invoices
@@ -85,5 +95,12 @@ router.patch('/invoices/:id/payment', role(['admin']), validate(recordPaymentSch
  * @access  Private/Admin
  */
 router.patch('/invoices/:id/cancel', role(['admin']), validate(cancelInvoiceSchema), cancelInvoice);
+
+/**
+ * @route   POST /api/v1/billing/invoices/:id/duplicate
+ * @desc    Generate the "next" recurring invoice from an existing one
+ * @access  Private/Admin — Billing Step 4
+ */
+router.post('/invoices/:id/duplicate', role(['admin']), validate(duplicateInvoiceSchema), duplicateInvoice);
 
 export default router;

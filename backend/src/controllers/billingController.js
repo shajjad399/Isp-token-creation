@@ -134,7 +134,8 @@ export const getInvoiceById = async (req, res, next) => {
   try {
     const invoice = await Invoice.findById(req.params.id)
       .populate('customer', 'name email phone')
-      .populate('createdBy', 'name email');
+      .populate('createdBy', 'name email')
+      .populate('payments.recordedBy', 'name');
 
     if (!invoice) {
       throw new ApiError(404, 'Invoice not found');
@@ -273,6 +274,164 @@ export const cancelInvoice = async (req, res, next) => {
 
     res.status(200).json(
       ApiResponse.success(invoice, 'Invoice cancelled successfully')
+    );
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ============================================================
+// BILLING STATS (Admin/Agent dashboard — Billing Step 4)
+// Powers the revenue chart, status breakdown, collection rate
+// and overdue watchlist on the Admin Billing page.
+// ============================================================
+export const getBillingStats = async (req, res, next) => {
+  try {
+    const now = new Date();
+    const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+    const startOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+
+    const [statusBreakdownAgg, monthlyRevenueAgg, totals, overdueInvoices, thisMonthAgg, lastMonthAgg] = await Promise.all([
+      // Invoice count + face value grouped by status
+      Invoice.aggregate([
+        { $group: { _id: '$status', count: { $sum: 1 }, amount: { $sum: '$totalAmount' } } }
+      ]),
+
+      // Collected revenue per month (based on when payments were actually recorded)
+      Invoice.aggregate([
+        { $unwind: '$payments' },
+        { $match: { 'payments.paidAt': { $gte: sixMonthsAgo } } },
+        {
+          $group: {
+            _id: { year: { $year: '$payments.paidAt' }, month: { $month: '$payments.paidAt' } },
+            total: { $sum: '$payments.amount' }
+          }
+        },
+        { $sort: { '_id.year': 1, '_id.month': 1 } }
+      ]),
+
+      // Overall totals for collection rate + outstanding balance
+      Invoice.aggregate([
+        { $match: { status: { $ne: INVOICE_STATUS.DRAFT } } },
+        {
+          $group: {
+            _id: null,
+            totalInvoiced: { $sum: '$totalAmount' },
+            totalCollected: { $sum: '$amountPaid' }
+          }
+        }
+      ]),
+
+      // Watchlist — invoices most urgently overdue
+      Invoice.find({ status: INVOICE_STATUS.OVERDUE })
+        .populate('customer', 'name email phone')
+        .sort({ dueDate: 1 })
+        .limit(8)
+        .select('invoiceNumber customer totalAmount amountPaid dueDate'),
+
+      Invoice.aggregate([
+        { $unwind: '$payments' },
+        { $match: { 'payments.paidAt': { $gte: startOfThisMonth } } },
+        { $group: { _id: null, total: { $sum: '$payments.amount' } } }
+      ]),
+
+      Invoice.aggregate([
+        { $unwind: '$payments' },
+        { $match: { 'payments.paidAt': { $gte: startOfLastMonth, $lt: startOfThisMonth } } },
+        { $group: { _id: null, total: { $sum: '$payments.amount' } } }
+      ])
+    ]);
+
+    // --- Build a full 6-month series, filling gaps with 0 so the chart never breaks
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const revenueMap = new Map(
+      monthlyRevenueAgg.map((row) => [`${row._id.year}-${row._id.month}`, row.total])
+    );
+    const monthlyRevenue = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const key = `${d.getFullYear()}-${d.getMonth() + 1}`;
+      monthlyRevenue.push({
+        month: `${monthNames[d.getMonth()]} ${d.getFullYear()}`,
+        revenue: Math.round((revenueMap.get(key) || 0) * 100) / 100
+      });
+    }
+
+    const statusBreakdown = Object.values(INVOICE_STATUS).map((status) => {
+      const row = statusBreakdownAgg.find((r) => r._id === status);
+      return { status, count: row?.count || 0, amount: row?.amount || 0 };
+    });
+
+    const totalInvoiced = totals[0]?.totalInvoiced || 0;
+    const totalCollected = totals[0]?.totalCollected || 0;
+    const collectionRate = totalInvoiced > 0 ? Math.round((totalCollected / totalInvoiced) * 1000) / 10 : 0;
+    const totalOutstanding = Math.max(0, Math.round((totalInvoiced - totalCollected) * 100) / 100);
+
+    res.status(200).json(
+      ApiResponse.success({
+        monthlyRevenue,
+        statusBreakdown,
+        collectionRate,
+        totalOutstanding,
+        revenueThisMonth: thisMonthAgg[0]?.total || 0,
+        revenueLastMonth: lastMonthAgg[0]?.total || 0,
+        overdueInvoices
+      }, 'Billing stats fetched successfully')
+    );
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ============================================================
+// DUPLICATE / GENERATE RECURRING INVOICE (Admin only — Billing Step 4)
+// Spins off the "next" invoice from an existing one: same customer,
+// same line items/discount/tax, billing period rolled forward by
+// one month, and a fresh due date. Handy for monthly ISP billing
+// without needing a full cron-based scheduler yet.
+// ============================================================
+export const duplicateInvoice = async (req, res, next) => {
+  try {
+    const source = await Invoice.findById(req.params.id);
+
+    if (!source) {
+      throw new ApiError(404, 'Invoice not found');
+    }
+
+    const dueInDays = req.body.dueInDays || 15;
+
+    // Roll the billing period forward by one month from where the source left off
+    const newStart = new Date(source.billingPeriod.end);
+    newStart.setDate(newStart.getDate() + 1);
+    const newEnd = new Date(newStart);
+    newEnd.setMonth(newEnd.getMonth() + 1);
+    newEnd.setDate(newEnd.getDate() - 1);
+
+    const newDueDate = new Date();
+    newDueDate.setDate(newDueDate.getDate() + dueInDays);
+
+    const invoiceNumber = await Invoice.generateInvoiceNumber();
+
+    const invoice = new Invoice({
+      invoiceNumber,
+      customer: source.customer,
+      billingPeriod: { start: newStart, end: newEnd },
+      items: source.items.map(({ description, amount }) => ({ description, amount })),
+      discount: source.discount || 0,
+      tax: source.tax || 0,
+      dueDate: newDueDate,
+      notes: `Recurring invoice generated from ${source.invoiceNumber}`,
+      createdBy: req.user.id
+    });
+
+    await invoice.save();
+    await invoice.populate('customer', 'name email phone');
+
+    logger.info(`🔁 Recurring invoice ${invoice.invoiceNumber} generated from ${source.invoiceNumber}`);
+
+    res.status(201).json(
+      ApiResponse.success(invoice, 'Recurring invoice generated successfully', 201)
     );
   } catch (error) {
     next(error);
