@@ -28,6 +28,8 @@ import CreateTicket from './pages/CreateTicket';
 import TicketDetails from './pages/TicketDetails';
 import Profile from './pages/Profile';
 import LiveChat from './pages/LiveChat';
+// ✅ Billing & Payments — notun add kora hoyeche (Billing Step 1)
+import Billing from './pages/Billing';
 
 // Admin Pages (Lazy Loaded for performance)
 const AdminLogin = lazy(() => import('./pages/admin/AdminLogin'));
@@ -305,6 +307,15 @@ function App() {
           <ProtectedRoute>
             <DashboardLayout>
               <Profile />
+            </DashboardLayout>
+          </ProtectedRoute>
+        } />
+
+        {/* ✅ Billing & Payments — notun add kora hoyeche (Billing Step 1) */}
+        <Route path="/billing" element={
+          <ProtectedRoute>
+            <DashboardLayout>
+              <Billing />
             </DashboardLayout>
           </ProtectedRoute>
         } />

@@ -35,6 +35,8 @@ import userRoutes from './routes/userRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import notificationRoutes from './routes/notificationRoutes.js';
 import chatRoutes from './routes/chatRoutes.js';
+// ✅ Billing & Payment routes — notun add kora hoyeche (Billing Step 1)
+import billingRoutes from './routes/billingRoutes.js';
 
 // ============================================================
 // INITIALIZE EXPRESS APP
@@ -266,6 +268,16 @@ app.get('/', (req, res) => {
         updateUser: 'PUT /api/admin/users/:id',
         deleteUser: 'DELETE /api/admin/users/:id',
         stats: 'GET /api/admin/stats'
+      },
+      billing: {
+        summary: 'GET /api/v1/billing/invoices/summary',
+        list: 'GET /api/v1/billing/invoices',
+        create: 'POST /api/v1/billing/invoices',
+        details: 'GET /api/v1/billing/invoices/:id',
+        update: 'PUT /api/v1/billing/invoices/:id',
+        delete: 'DELETE /api/v1/billing/invoices/:id',
+        recordPayment: 'PATCH /api/v1/billing/invoices/:id/payment',
+        cancel: 'PATCH /api/v1/billing/invoices/:id/cancel'
       }
     }
   });
@@ -281,6 +293,8 @@ app.use('/api/v1/tickets', ticketRoutes);
 app.use('/api/v1/users', userRoutes);
 app.use('/api/v1/notifications', notificationRoutes);
 app.use('/api/v1/chats', chatRoutes);
+// ✅ Billing & Payment API — notun add kora hoyeche (Billing Step 1)
+app.use('/api/v1/billing', billingRoutes);
 
 // ============================================================
 // ✅ ADMIN API ROUTES (FIXED)

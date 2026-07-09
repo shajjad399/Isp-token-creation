@@ -12,7 +12,8 @@ import {
   ArrowRightOnRectangleIcon,
   ShieldCheckIcon,
   ChatBubbleLeftRightIcon,
-  XMarkIcon
+  XMarkIcon,
+  CreditCardIcon
 } from '@heroicons/react/24/outline';
 
 const Sidebar = ({ isOpen = false, onClose = () => {} }) => {
@@ -25,6 +26,8 @@ const Sidebar = ({ isOpen = false, onClose = () => {} }) => {
     { path: '/dashboard', label: 'Dashboard', icon: HomeIcon },
     { path: '/tickets', label: 'Tickets', icon: TicketIcon },
     { path: '/tickets/create', label: 'Create Ticket', icon: PlusCircleIcon },
+    // ✅ Billing & Payments — notun add kora hoyeche (Billing Step 1)
+    { path: '/billing', label: 'Billing', icon: CreditCardIcon },
     ...(user?.role === 'agent' || user?.role === 'admin'
       ? [{ path: '/live-chat', label: 'Live Chat', icon: ChatBubbleLeftRightIcon }]
       : []),
