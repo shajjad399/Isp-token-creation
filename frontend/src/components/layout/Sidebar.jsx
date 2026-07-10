@@ -26,8 +26,13 @@ const Sidebar = ({ isOpen = false, onClose = () => {} }) => {
     { path: '/dashboard', label: 'Dashboard', icon: HomeIcon },
     { path: '/tickets', label: 'Tickets', icon: TicketIcon },
     { path: '/tickets/create', label: 'Create Ticket', icon: PlusCircleIcon },
-    // ✅ Billing & Payments — notun add kora hoyeche (Billing Step 1)
-    { path: '/billing', label: 'Billing', icon: CreditCardIcon },
+    // ✅ Billing & Payments — customer-only page, so only show it to customers.
+    // Bug fix: this was showing for admin/agent too, and clicking it threw
+    // "Customer id is required" because /billing's summary endpoint expects
+    // a logged-in customer, not an admin/agent viewing without a ?customer= id.
+    ...(user?.role === 'customer'
+      ? [{ path: '/billing', label: 'Billing', icon: CreditCardIcon }]
+      : []),
     ...(user?.role === 'agent' || user?.role === 'admin'
       ? [{ path: '/live-chat', label: 'Live Chat', icon: ChatBubbleLeftRightIcon }]
       : []),

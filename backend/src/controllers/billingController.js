@@ -113,7 +113,20 @@ export const getBillingSummary = async (req, res, next) => {
   try {
     const customerId = req.user.role === 'customer' ? req.user.id : req.query.customer;
 
+    // Admin/agent viewing without a specific ?customer= id (e.g. accidentally
+    // landing on the customer billing page) shouldn't hard-error the page —
+    // just return an empty summary instead.
     if (!customerId) {
+      if (req.user.role === 'admin' || req.user.role === 'agent') {
+        return res.status(200).json(
+          ApiResponse.success({
+            totalDue: 0,
+            totalPaidThisYear: 0,
+            overdueCount: 0,
+            nextDue: null
+          }, 'Billing summary fetched successfully')
+        );
+      }
       throw new ApiError(400, 'Customer id is required');
     }
 
