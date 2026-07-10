@@ -58,6 +58,7 @@ const STATUS_LABEL = {
 // ============================================================
 
 const AdminInvoices = () => {
+  console.log("✅ ADMIN BILLING PAGE LOADED");
   const navigate = useNavigate();
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);

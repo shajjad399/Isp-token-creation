@@ -277,7 +277,7 @@ invoiceSchema.index({ customer: 1, status: 1 });
 // PRE-SAVE HOOKS
 // ============================================================
 
-invoiceSchema.pre('save', function (next) {
+invoiceSchema.pre('validate', function (next) {
   // Auto-calculate subtotal from items when items change
   if (this.isModified('items')) {
     this.subtotal = this.items.reduce((sum, item) => sum + item.amount, 0);

@@ -12,6 +12,7 @@ import {
   MoonIcon,
   SunIcon,
   ChatBubbleLeftRightIcon,
+  CreditCardIcon,
   UserIcon,
   Bars3Icon,
   XMarkIcon
@@ -29,12 +30,13 @@ const AdminLayout = ({ children }) => {
     navigate('/admin/login');
   };
 
-  const menuItems = [
-    { path: '/admin/dashboard', label: 'Dashboard', icon: HomeIcon },
-    { path: '/admin/users', label: 'Users', icon: UsersIcon },
-    { path: '/live-chat', label: 'Live Chat', icon: ChatBubbleLeftRightIcon },
-    { path: '/profile', label: 'Profile', icon: UserIcon },
-  ];
+const menuItems = [
+  { path: '/admin/dashboard', label: 'Dashboard', icon: HomeIcon },
+  { path: '/admin/users', label: 'Users', icon: UsersIcon },
+  { path: '/admin/billing', label: 'Billing', icon: CreditCardIcon },
+  { path: '/live-chat', label: 'Live Chat', icon: ChatBubbleLeftRightIcon },
+  { path: '/profile', label: 'Profile', icon: UserIcon },
+];
 
   return (
     <div className="flex h-screen bg-gray-100 dark:bg-gray-900 overflow-hidden">
