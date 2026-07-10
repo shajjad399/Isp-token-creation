@@ -63,6 +63,62 @@ const paymentRecordSchema = new mongoose.Schema({
 }, { _id: false });
 
 // ============================================================
+// PAYMENT CLAIM SUB-SCHEMA
+// Customer-submitted manual payment claim (bKash/Nagad/Rocket) —
+// pending until an admin verifies the transaction ID and approves it.
+// ============================================================
+
+const paymentClaimSchema = new mongoose.Schema({
+  amount: {
+    type: Number,
+    required: true,
+    min: [0.01, 'Claim amount must be greater than 0']
+  },
+  method: {
+    type: String,
+    enum: [PAYMENT_METHODS.BKASH, PAYMENT_METHODS.NAGAD, PAYMENT_METHODS.ROCKET],
+    required: true
+  },
+  transactionId: {
+    type: String,
+    required: [true, 'Transaction ID is required'],
+    trim: true
+  },
+  senderNumber: {
+    type: String,
+    trim: true,
+    default: null
+  },
+  status: {
+    type: String,
+    enum: ['pending', 'approved', 'rejected'],
+    default: 'pending',
+    index: true
+  },
+  submittedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  submittedAt: {
+    type: Date,
+    default: Date.now
+  },
+  reviewedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  reviewedAt: {
+    type: Date,
+    default: null
+  },
+  reviewNote: {
+    type: String,
+    trim: true,
+    maxlength: [300, 'Review note cannot exceed 300 characters']
+  }
+});
+
+// ============================================================
 // INVOICE SCHEMA
 // ============================================================
 
@@ -167,6 +223,9 @@ const invoiceSchema = new mongoose.Schema({
 
   // Payment history (supports partial payments)
   payments: [paymentRecordSchema],
+
+  // Customer-submitted manual payment claims (bKash/Nagad/Rocket) awaiting admin review
+  paymentClaims: [paymentClaimSchema],
 
   notes: {
     type: String,
@@ -325,6 +384,54 @@ invoiceSchema.statics.getCustomerSummary = async function (customerId) {
       amount: nextDue.totalAmount - nextDue.amountPaid
     } : null
   };
+};
+
+/**
+ * Fetch all invoices that currently have at least one pending
+ * manual payment claim — powers the admin "Pending Payments" widget.
+ */
+invoiceSchema.statics.getPendingClaims = async function (limit = 20) {
+  return this.aggregate([
+    { $match: { 'paymentClaims.status': 'pending' } },
+    {
+      $project: {
+        invoiceNumber: 1,
+        customer: 1,
+        totalAmount: 1,
+        amountPaid: 1,
+        paymentClaims: {
+          $filter: {
+            input: '$paymentClaims',
+            as: 'claim',
+            cond: { $eq: ['$$claim.status', 'pending'] }
+          }
+        }
+      }
+    },
+    { $unwind: '$paymentClaims' },
+    { $sort: { 'paymentClaims.submittedAt': 1 } },
+    { $limit: limit },
+    {
+      $lookup: {
+        from: 'users',
+        localField: 'customer',
+        foreignField: '_id',
+        as: 'customer'
+      }
+    },
+    { $unwind: '$customer' },
+    {
+      $project: {
+        invoiceNumber: 1,
+        totalAmount: 1,
+        amountPaid: 1,
+        'customer._id': 1,
+        'customer.name': 1,
+        'customer.email': 1,
+        claim: '$paymentClaims'
+      }
+    }
+  ]);
 };
 
 // ============================================================

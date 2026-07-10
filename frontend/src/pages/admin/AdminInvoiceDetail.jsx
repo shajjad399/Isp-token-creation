@@ -93,9 +93,39 @@ const AdminInvoiceDetail = () => {
     }
   };
 
+  // ✅ Manual payment claim review — notun add kora hoyeche (Manual Payment feature)
+  const handleApproveClaim = async (claimId) => {
+    if (!window.confirm('Approve this payment? It will be recorded against the invoice immediately.')) return;
+    setBusy(true);
+    try {
+      await api.patch(`/billing/invoices/${invoice._id}/claims/${claimId}/approve`, {});
+      toast.success('Payment approved and recorded');
+      fetchInvoice();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to approve payment');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleRejectClaim = async (claimId) => {
+    if (!window.confirm('Reject this payment claim?')) return;
+    setBusy(true);
+    try {
+      await api.patch(`/billing/invoices/${invoice._id}/claims/${claimId}/reject`, {});
+      toast.success('Payment claim rejected');
+      fetchInvoice();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to reject payment claim');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const canPay = invoice && ['unpaid', 'partially_paid', 'overdue'].includes(invoice.status);
   const canCancel = invoice && !['paid', 'cancelled'].includes(invoice.status);
   const canDelete = invoice && invoice.status === 'draft';
+  const pendingClaims = invoice?.paymentClaims?.filter((c) => c.status === 'pending') || [];
 
   return (
     <AdminLayout>
@@ -150,7 +180,34 @@ const AdminInvoiceDetail = () => {
             <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200">{error}</h3>
           </div>
         ) : (
-          <InvoiceReceipt invoice={invoice} />
+          <>
+            {/* Pending manual payment claims — needs admin verification */}
+            {pendingClaims.length > 0 && (
+              <div className="no-print bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-2xl p-5 space-y-3">
+                <h3 className="text-sm font-semibold text-amber-800 dark:text-amber-300 flex items-center gap-2">
+                  <ExclamationTriangleIcon className="h-4 w-4" />
+                  Pending Payment{pendingClaims.length > 1 ? 's' : ''} — Needs Verification
+                </h3>
+                {pendingClaims.map((claim) => (
+                  <div key={claim._id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-gray-800 rounded-xl p-3.5">
+                    <div className="text-sm">
+                      <p className="font-medium text-gray-800 dark:text-white">
+                        {claim.method?.toUpperCase()} · Txn ID: <span className="font-mono">{claim.transactionId}</span>
+                      </p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                        ৳{claim.amount} {claim.senderNumber ? `· from ${claim.senderNumber}` : ''} · submitted {new Date(claim.submittedAt).toLocaleString()}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <Button size="sm" variant="danger" onClick={() => handleRejectClaim(claim._id)} disabled={busy}>Reject</Button>
+                      <Button size="sm" onClick={() => handleApproveClaim(claim._id)} disabled={busy}>Approve</Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <InvoiceReceipt invoice={invoice} />
+          </>
         )}
       </div>
 

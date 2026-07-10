@@ -13,6 +13,7 @@ import toast from 'react-hot-toast';
 import api from '../services/api';
 import Button from '../components/ui/Button';
 import InvoiceReceipt from '../components/billing/InvoiceReceipt';
+import ManualPaymentModal from '../components/billing/ManualPaymentModal';
 import {
   ArrowLeftIcon,
   PrinterIcon,
@@ -26,6 +27,7 @@ const InvoiceDetail = () => {
   const [invoice, setInvoice] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [paying, setPaying] = useState(false);
 
   const fetchInvoice = useCallback(async () => {
     setLoading(true);
@@ -43,12 +45,6 @@ const InvoiceDetail = () => {
   useEffect(() => {
     fetchInvoice();
   }, [fetchInvoice]);
-
-  const handlePayNow = () => {
-    toast('Online payment is coming soon — this invoice is ready to be paid once the gateway is connected.', {
-      icon: '💳'
-    });
-  };
 
   const canPay = invoice && ['unpaid', 'partially_paid', 'overdue'].includes(invoice.status);
 
@@ -71,7 +67,7 @@ const InvoiceDetail = () => {
               Print / Download
             </Button>
             {canPay && (
-              <Button size="sm" onClick={handlePayNow}>
+              <Button size="sm" onClick={() => setPaying(true)}>
                 <CreditCardIcon className="h-4 w-4 mr-1.5" />
                 Pay Now
               </Button>
@@ -93,6 +89,15 @@ const InvoiceDetail = () => {
       ) : (
         <InvoiceReceipt invoice={invoice} />
       )}
+
+      <ManualPaymentModal
+        invoice={paying ? invoice : null}
+        onClose={() => setPaying(false)}
+        onSuccess={() => {
+          setPaying(false);
+          fetchInvoice();
+        }}
+      />
     </div>
   );
 };

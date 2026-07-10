@@ -7,8 +7,9 @@
 // a status breakdown donut, and an overdue-invoice watchlist.
 // ============================================================
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
   PieChart, Pie, Cell
@@ -18,9 +19,11 @@ import {
   ChartPieIcon,
   ExclamationTriangleIcon,
   ArrowTrendingUpIcon,
-  ArrowTrendingDownIcon
+  ArrowTrendingDownIcon,
+  ClockIcon
 } from '@heroicons/react/24/outline';
 import { useBillingStats } from '../../hooks/useBillingStats';
+import api from '../../services/api';
 
 // ============================================================
 // HELPERS
@@ -94,6 +97,51 @@ const KpiCard = ({ title, value, icon: Icon, tone, trend }) => {
 const BillingStatsPanel = () => {
   const navigate = useNavigate();
   const { stats, loading } = useBillingStats();
+  const [pendingClaims, setPendingClaims] = useState([]);
+  const [claimsLoading, setClaimsLoading] = useState(true);
+  const [busyClaimId, setBusyClaimId] = useState(null);
+
+  const fetchPendingClaims = async () => {
+    setClaimsLoading(true);
+    try {
+      const response = await api.get('/billing/claims/pending');
+      setPendingClaims(response.data.data);
+    } catch {
+      // Non-critical widget — fail silently, dashboard still works
+    } finally {
+      setClaimsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPendingClaims();
+  }, []);
+
+  const handleApprove = async (invoiceId, claimId) => {
+    setBusyClaimId(claimId);
+    try {
+      await api.patch(`/billing/invoices/${invoiceId}/claims/${claimId}/approve`, {});
+      toast.success('Payment approved');
+      fetchPendingClaims();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to approve payment');
+    } finally {
+      setBusyClaimId(null);
+    }
+  };
+
+  const handleReject = async (invoiceId, claimId) => {
+    setBusyClaimId(claimId);
+    try {
+      await api.patch(`/billing/invoices/${invoiceId}/claims/${claimId}/reject`, {});
+      toast.success('Payment claim rejected');
+      fetchPendingClaims();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to reject payment claim');
+    } finally {
+      setBusyClaimId(null);
+    }
+  };
 
   const growth = stats.revenueLastMonth > 0
     ? Math.round(((stats.revenueThisMonth - stats.revenueLastMonth) / stats.revenueLastMonth) * 1000) / 10
@@ -198,6 +246,52 @@ const BillingStatsPanel = () => {
           )}
         </div>
       </div>
+
+      {/* Pending manual payment claims — bKash/Nagad/Rocket needing verification */}
+      {!claimsLoading && pendingClaims.length > 0 && (
+        <div className="card-premium p-5">
+          <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-4 flex items-center gap-2">
+            <ClockIcon className="h-4 w-4 text-amber-500" />
+            Pending Manual Payments — Needs Verification
+          </h3>
+          <div className="divide-y divide-gray-100 dark:divide-gray-700/60">
+            {pendingClaims.map(({ _id: invoiceId, invoiceNumber, customer, claim }) => (
+              <div key={claim._id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 py-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-gray-800 dark:text-white truncate">
+                    {customer?.name || '—'} <span className="text-gray-400 font-normal">· {invoiceNumber}</span>
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    {claim.method?.toUpperCase()} · Txn: <span className="font-mono">{claim.transactionId}</span> · {formatMoney(claim.amount)}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <button
+                    onClick={() => handleReject(invoiceId, claim._id)}
+                    disabled={busyClaimId === claim._id}
+                    className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 disabled:opacity-50 transition-colors"
+                  >
+                    Reject
+                  </button>
+                  <button
+                    onClick={() => handleApprove(invoiceId, claim._id)}
+                    disabled={busyClaimId === claim._id}
+                    className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 hover:bg-green-100 disabled:opacity-50 transition-colors"
+                  >
+                    Approve
+                  </button>
+                  <button
+                    onClick={() => navigate(`/admin/billing/${invoiceId}`)}
+                    className="px-3 py-1.5 rounded-lg text-xs font-semibold text-gray-500 hover:text-gray-800 dark:hover:text-white transition-colors"
+                  >
+                    View
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Overdue watchlist */}
       {stats.overdueInvoices.length > 0 && (

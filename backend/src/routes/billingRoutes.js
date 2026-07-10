@@ -14,7 +14,11 @@ import {
   recordPayment,
   cancelInvoice,
   getBillingStats,
-  duplicateInvoice
+  duplicateInvoice,
+  claimPayment,
+  getPendingClaims,
+  approveClaim,
+  rejectClaim
 } from '../controllers/billingController.js';
 import { auth } from '../middlewares/auth.js';
 import { role } from '../middlewares/role.js';
@@ -24,7 +28,9 @@ import {
   updateInvoiceSchema,
   recordPaymentSchema,
   cancelInvoiceSchema,
-  duplicateInvoiceSchema
+  duplicateInvoiceSchema,
+  claimPaymentSchema,
+  reviewClaimSchema
 } from '../validators/billingValidator.js';
 
 const router = express.Router();
@@ -45,6 +51,13 @@ router.get('/invoices/summary', getBillingSummary);
  * @access  Private/Admin+Agent — Billing Step 4
  */
 router.get('/stats', role(['admin', 'agent']), getBillingStats);
+
+/**
+ * @route   GET /api/v1/billing/claims/pending
+ * @desc    Watchlist of manual payment claims awaiting verification
+ * @access  Private/Admin+Agent — Manual Payment feature
+ */
+router.get('/claims/pending', role(['admin', 'agent']), getPendingClaims);
 
 /**
  * @route   GET /api/v1/billing/invoices
@@ -102,5 +115,26 @@ router.patch('/invoices/:id/cancel', role(['admin']), validate(cancelInvoiceSche
  * @access  Private/Admin — Billing Step 4
  */
 router.post('/invoices/:id/duplicate', role(['admin']), validate(duplicateInvoiceSchema), duplicateInvoice);
+
+/**
+ * @route   POST /api/v1/billing/invoices/:id/claim-payment
+ * @desc    Customer submits a manual bKash/Nagad/Rocket payment claim
+ * @access  Private/Customer — Manual Payment feature
+ */
+router.post('/invoices/:id/claim-payment', role(['customer']), validate(claimPaymentSchema), claimPayment);
+
+/**
+ * @route   PATCH /api/v1/billing/invoices/:id/claims/:claimId/approve
+ * @desc    Approve a manual payment claim — records it as a real payment
+ * @access  Private/Admin — Manual Payment feature
+ */
+router.patch('/invoices/:id/claims/:claimId/approve', role(['admin']), validate(reviewClaimSchema), approveClaim);
+
+/**
+ * @route   PATCH /api/v1/billing/invoices/:id/claims/:claimId/reject
+ * @desc    Reject a manual payment claim
+ * @access  Private/Admin — Manual Payment feature
+ */
+router.patch('/invoices/:id/claims/:claimId/reject', role(['admin']), validate(reviewClaimSchema), rejectClaim);
 
 export default router;

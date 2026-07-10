@@ -193,6 +193,30 @@ const InvoiceReceipt = ({ invoice }) => {
           </div>
         </div>
 
+        {/* Manual payment claims — pending/rejected only (approved ones already show in Payment History) */}
+        {invoice.paymentClaims?.some((c) => c.status !== 'approved') && (
+          <div className="mt-6 space-y-2">
+            {invoice.paymentClaims.filter((c) => c.status !== 'approved').map((claim, i) => (
+              <div
+                key={i}
+                className={`flex items-center justify-between gap-3 rounded-xl px-4 py-3 text-sm ${
+                  claim.status === 'pending'
+                    ? 'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400'
+                    : 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400'
+                }`}
+              >
+                <span>
+                  {PAYMENT_METHOD_LABEL[claim.method] || claim.method} payment ({claim.transactionId}) —{' '}
+                  <span className="font-semibold">
+                    {claim.status === 'pending' ? 'Awaiting Verification' : 'Rejected'}
+                  </span>
+                </span>
+                <span className="font-semibold flex-shrink-0">{formatMoney(claim.amount)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* Payment history */}
         {invoice.payments?.length > 0 && (
           <div className="mt-10">

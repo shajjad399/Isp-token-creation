@@ -11,8 +11,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import toast from 'react-hot-toast';
 import { useBilling } from '../hooks/useBilling';
+import ManualPaymentModal from '../components/billing/ManualPaymentModal';
 import Card from '../components/ui/Card';
 import Badge from '../components/ui/Badge';
 import Button from '../components/ui/Button';
@@ -172,18 +172,12 @@ const InvoiceRow = ({ invoice, onPayNow, index }) => {
 
 const Billing = () => {
   const [statusFilter, setStatusFilter] = useState('');
+  const [payingInvoice, setPayingInvoice] = useState(null);
   const { invoices, summary, loading, fetchInvoices } = useBilling();
 
   const handleFilterChange = (value) => {
     setStatusFilter(value);
     fetchInvoices({ status: value || undefined });
-  };
-
-  // Placeholder — real gateway (bKash/Nagad/SSLCommerz) arrives in a later step.
-  const handlePayNow = (invoice) => {
-    toast('Online payment is coming soon — this invoice is ready to be paid once the gateway is connected.', {
-      icon: '💳'
-    });
   };
 
   return (
@@ -274,10 +268,19 @@ const Billing = () => {
       ) : (
         <div className="space-y-3">
           {invoices.map((invoice, index) => (
-            <InvoiceRow key={invoice._id} invoice={invoice} index={index} onPayNow={handlePayNow} />
+            <InvoiceRow key={invoice._id} invoice={invoice} index={index} onPayNow={setPayingInvoice} />
           ))}
         </div>
       )}
+
+      <ManualPaymentModal
+        invoice={payingInvoice}
+        onClose={() => setPayingInvoice(null)}
+        onSuccess={() => {
+          setPayingInvoice(null);
+          fetchInvoices({ status: statusFilter || undefined });
+        }}
+      />
     </div>
   );
 };

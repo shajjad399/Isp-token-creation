@@ -113,20 +113,7 @@ export const getBillingSummary = async (req, res, next) => {
   try {
     const customerId = req.user.role === 'customer' ? req.user.id : req.query.customer;
 
-    // Admin/agent viewing without a specific ?customer= id (e.g. accidentally
-    // landing on the customer billing page) shouldn't hard-error the page —
-    // just return an empty summary instead.
     if (!customerId) {
-      if (req.user.role === 'admin' || req.user.role === 'agent') {
-        return res.status(200).json(
-          ApiResponse.success({
-            totalDue: 0,
-            totalPaidThisYear: 0,
-            overdueCount: 0,
-            nextDue: null
-          }, 'Billing summary fetched successfully')
-        );
-      }
       throw new ApiError(400, 'Customer id is required');
     }
 
@@ -256,6 +243,168 @@ export const recordPayment = async (req, res, next) => {
 
     res.status(200).json(
       ApiResponse.success(invoice, 'Payment recorded successfully')
+    );
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ============================================================
+// SUBMIT MANUAL PAYMENT CLAIM (Customer — bKash/Nagad/Rocket)
+// Customer sends money manually to the ISP's mobile wallet, then
+// submits the Transaction ID here. Invoice is NOT marked paid yet —
+// it goes to "pending verification" until an admin approves it.
+// ============================================================
+export const claimPayment = async (req, res, next) => {
+  try {
+    const { amount, method, transactionId, senderNumber } = req.body;
+
+    const invoice = await Invoice.findById(req.params.id);
+
+    if (!invoice) {
+      throw new ApiError(404, 'Invoice not found');
+    }
+
+    // Customers may only claim payment on their own invoice
+    if (req.user.role === 'customer' && invoice.customer.toString() !== req.user.id) {
+      throw new ApiError(403, 'You do not have permission to pay this invoice');
+    }
+
+    if ([INVOICE_STATUS.PAID, INVOICE_STATUS.CANCELLED, INVOICE_STATUS.DRAFT].includes(invoice.status)) {
+      throw new ApiError(400, `Cannot submit a payment claim on a ${invoice.status} invoice`);
+    }
+
+    const alreadyClaimed = invoice.paymentClaims.some(
+      (c) => c.transactionId.toLowerCase() === transactionId.toLowerCase() && c.status !== 'rejected'
+    );
+    if (alreadyClaimed) {
+      throw new ApiError(409, 'This transaction ID has already been submitted for this invoice');
+    }
+
+    invoice.paymentClaims.push({
+      amount,
+      method,
+      transactionId,
+      senderNumber,
+      status: 'pending',
+      submittedBy: req.user.id,
+      submittedAt: new Date()
+    });
+
+    await invoice.save();
+    await invoice.populate('customer', 'name email phone');
+
+    logger.info(`🧾 Manual payment claim submitted on ${invoice.invoiceNumber}: ${amount} via ${method} (${transactionId})`);
+
+    res.status(201).json(
+      ApiResponse.success(invoice, 'Payment submitted successfully — awaiting verification', 201)
+    );
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ============================================================
+// PENDING PAYMENT CLAIMS WATCHLIST (Admin/Agent)
+// ============================================================
+export const getPendingClaims = async (req, res, next) => {
+  try {
+    const claims = await Invoice.getPendingClaims(20);
+
+    res.status(200).json(
+      ApiResponse.success(claims, 'Pending payment claims fetched successfully')
+    );
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ============================================================
+// APPROVE MANUAL PAYMENT CLAIM (Admin only)
+// Verifies the transaction ID was checked and moves the claim
+// into the real payment ledger, which recalculates invoice status.
+// ============================================================
+export const approveClaim = async (req, res, next) => {
+  try {
+    const invoice = await Invoice.findById(req.params.id);
+
+    if (!invoice) {
+      throw new ApiError(404, 'Invoice not found');
+    }
+
+    const claim = invoice.paymentClaims.id(req.params.claimId);
+
+    if (!claim) {
+      throw new ApiError(404, 'Payment claim not found');
+    }
+
+    if (claim.status !== 'pending') {
+      throw new ApiError(400, `This claim has already been ${claim.status}`);
+    }
+
+    const payableAmount = Math.min(claim.amount, invoice.dueAmount || claim.amount);
+
+    invoice.recordPayment({
+      amount: payableAmount,
+      method: claim.method,
+      reference: claim.transactionId,
+      note: `Verified manual ${claim.method} payment${claim.senderNumber ? ` from ${claim.senderNumber}` : ''}`,
+      recordedBy: req.user.id
+    });
+
+    claim.status = 'approved';
+    claim.reviewedBy = req.user.id;
+    claim.reviewedAt = new Date();
+    claim.reviewNote = req.body.reviewNote || undefined;
+
+    invoice.updatedBy = req.user.id;
+
+    await invoice.save();
+    await invoice.populate('customer', 'name email phone');
+
+    logger.info(`✅ Manual payment claim approved on ${invoice.invoiceNumber}: ${payableAmount} via ${claim.method}`);
+
+    res.status(200).json(
+      ApiResponse.success(invoice, 'Payment claim approved and recorded successfully')
+    );
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ============================================================
+// REJECT MANUAL PAYMENT CLAIM (Admin only)
+// ============================================================
+export const rejectClaim = async (req, res, next) => {
+  try {
+    const invoice = await Invoice.findById(req.params.id);
+
+    if (!invoice) {
+      throw new ApiError(404, 'Invoice not found');
+    }
+
+    const claim = invoice.paymentClaims.id(req.params.claimId);
+
+    if (!claim) {
+      throw new ApiError(404, 'Payment claim not found');
+    }
+
+    if (claim.status !== 'pending') {
+      throw new ApiError(400, `This claim has already been ${claim.status}`);
+    }
+
+    claim.status = 'rejected';
+    claim.reviewedBy = req.user.id;
+    claim.reviewedAt = new Date();
+    claim.reviewNote = req.body.reviewNote || undefined;
+
+    await invoice.save();
+    await invoice.populate('customer', 'name email phone');
+
+    logger.info(`❌ Manual payment claim rejected on ${invoice.invoiceNumber} (${claim.transactionId})`);
+
+    res.status(200).json(
+      ApiResponse.success(invoice, 'Payment claim rejected')
     );
   } catch (error) {
     next(error);

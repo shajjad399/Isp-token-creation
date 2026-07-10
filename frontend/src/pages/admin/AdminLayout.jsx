@@ -1,12 +1,13 @@
 // frontend/src/components/admin/AdminLayout.jsx
 import React, { useState } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../hooks/useTheme';
 import {
   HomeIcon,
   UsersIcon,
   TicketIcon,
+  CreditCardIcon,
   Cog6ToothIcon,
   ArrowRightOnRectangleIcon,
   MoonIcon,
@@ -14,23 +15,15 @@ import {
   ChatBubbleLeftRightIcon,
   UserIcon,
   Bars3Icon,
-  XMarkIcon,
-  CreditCardIcon
+  XMarkIcon
 } from '@heroicons/react/24/outline';
 
 const AdminLayout = ({ children }) => {
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
-  const location = useLocation();
   // ✅ Mobile/tablet: sidebar sheet is closed by default, opened via the menu button
   const [sidebarOpen, setSidebarOpen] = useState(false);
-
-  // ✅ Professional touch: highlight the current section in the sidebar
-  // (previously nothing was highlighted, so admins had no visual cue
-  // of which page they were on)
-  const isActive = (path) =>
-    location.pathname === path || location.pathname.startsWith(path + '/');
 
   const handleLogout = () => {
     logout();
@@ -40,8 +33,8 @@ const AdminLayout = ({ children }) => {
   const menuItems = [
     { path: '/admin/dashboard', label: 'Dashboard', icon: HomeIcon },
     { path: '/admin/users', label: 'Users', icon: UsersIcon },
-    // ✅ Billing & Invoices — bug fix: was missing from the admin sidebar
-    { path: '/admin/billing', label: 'Billing & Invoices', icon: CreditCardIcon },
+    // ✅ Billing & Payments — notun add kora hoyeche (Billing Step 2, missing link fixed)
+    { path: '/admin/billing', label: 'Billing', icon: CreditCardIcon },
     { path: '/live-chat', label: 'Live Chat', icon: ChatBubbleLeftRightIcon },
     { path: '/profile', label: 'Profile', icon: UserIcon },
   ];
@@ -81,27 +74,20 @@ const AdminLayout = ({ children }) => {
             <XMarkIcon className="h-5 w-5" />
           </button>
         </div>
-
+        
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-          {menuItems.map((item) => {
-            const active = isActive(item.path);
-            return (
-              <Link
-                key={item.path}
-                to={item.path}
-                onClick={() => setSidebarOpen(false)}
-                className={`flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200 ${
-                  active
-                    ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg shadow-blue-500/30'
-                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-                }`}
-              >
-                <item.icon className={`h-5 w-5 flex-shrink-0 ${active ? 'text-white' : ''}`} />
-                <span className="font-medium">{item.label}</span>
-              </Link>
-            );
-          })}
-
+          {menuItems.map((item) => (
+            <Link
+              key={item.path}
+              to={item.path}
+              onClick={() => setSidebarOpen(false)}
+              className="flex items-center space-x-3 px-4 py-3 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-700 dark:text-gray-300"
+            >
+              <item.icon className="h-5 w-5 flex-shrink-0" />
+              <span>{item.label}</span>
+            </Link>
+          ))}
+          
           <button
             onClick={toggleTheme}
             className="flex items-center space-x-3 px-4 py-3 w-full rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-700 dark:text-gray-300"
@@ -142,7 +128,7 @@ const AdminLayout = ({ children }) => {
             </div>
           </div>
         </header>
-
+        
         <main className="flex-1 overflow-y-auto p-4 md:p-6 bg-gray-50 dark:bg-gray-900">
           {children}
         </main>

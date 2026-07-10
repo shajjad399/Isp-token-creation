@@ -19,4 +19,16 @@ export const COMPANY_INFO = {
   paymentNote: 'Please pay before the due date to avoid service interruption.'
 };
 
+// ============================================================
+// MANUAL PAYMENT ACCOUNTS (bKash / Nagad / Rocket)
+// ============================================================
+// NEW — Manual Payment feature
+// The numbers customers should "Send Money" to. Update these to
+// your real merchant/personal wallet numbers.
+export const PAYMENT_ACCOUNTS = {
+  bkash: { label: 'bKash', number: '01746958484', type: 'Personal', color: '#E2136E' },
+  nagad: { label: 'Nagad', number: '01746958484', type: 'Personal', color: '#F6921E' },
+  rocket: { label: 'Rocket', number: '01746958484', type: 'Personal', color: '#8C3494' }
+};
+
 export default COMPANY_INFO;

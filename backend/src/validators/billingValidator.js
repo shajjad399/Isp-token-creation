@@ -85,3 +85,26 @@ export const cancelInvoiceSchema = Joi.object({
 export const duplicateInvoiceSchema = Joi.object({
   dueInDays: Joi.number().integer().min(1).max(90).default(15)
 });
+
+/**
+ * Manual payment claim validation schema (Customer submits bKash/Nagad/Rocket)
+ */
+export const claimPaymentSchema = Joi.object({
+  amount: Joi.number().positive().required().messages({
+    'number.positive': 'Amount must be greater than 0'
+  }),
+  method: Joi.string().valid('bkash', 'nagad', 'rocket').required().messages({
+    'any.only': 'Method must be one of bkash, nagad, rocket'
+  }),
+  transactionId: Joi.string().trim().min(4).max(50).required().messages({
+    'string.min': 'Transaction ID looks too short — please double-check it'
+  }),
+  senderNumber: Joi.string().trim().max(20).allow('', null)
+});
+
+/**
+ * Review (approve/reject) a manual payment claim — Admin only
+ */
+export const reviewClaimSchema = Joi.object({
+  reviewNote: Joi.string().trim().max(300).allow('', null)
+});
