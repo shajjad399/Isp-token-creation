@@ -111,16 +111,49 @@ export const getInvoices = async (req, res, next) => {
 // ============================================================
 export const getBillingSummary = async (req, res, next) => {
   try {
-    const customerId = req.user.role === 'customer' ? req.user.id : req.query.customer;
+    // Customer নিজের summary দেখবে
+    if (req.user.role === 'customer') {
+      const summary = await Invoice.getCustomerSummary(req.user.id);
 
-    if (!customerId) {
-      throw new ApiError(400, 'Customer id is required');
+      return res.status(200).json(
+        ApiResponse.success(summary, 'Billing summary fetched successfully')
+      );
     }
 
-    const summary = await Invoice.getCustomerSummary(customerId);
+    // Admin/Agent নির্দিষ্ট customer-এর summary চাইলে
+    if (req.query.customer) {
+      const summary = await Invoice.getCustomerSummary(req.query.customer);
+
+      return res.status(200).json(
+        ApiResponse.success(summary, 'Billing summary fetched successfully')
+      );
+    }
+
+    // Admin/Agent হলে সব invoice-এর summary
+    const summary = await Invoice.aggregate([
+      {
+        $group: {
+          _id: null,
+          totalDue: { $sum: '$dueAmount' },
+          totalPaidThisYear: { $sum: '$amountPaid' },
+          overdueCount: {
+            $sum: {
+              $cond: [{ $eq: ['$status', INVOICE_STATUS.OVERDUE] }, 1, 0]
+            }
+          }
+        }
+      }
+    ]);
 
     res.status(200).json(
-      ApiResponse.success(summary, 'Billing summary fetched successfully')
+      ApiResponse.success(
+        summary[0] || {
+          totalDue: 0,
+          totalPaidThisYear: 0,
+          overdueCount: 0
+        },
+        'Billing summary fetched successfully'
+      )
     );
   } catch (error) {
     next(error);
