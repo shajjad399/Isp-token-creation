@@ -142,10 +142,14 @@ const InvoiceRow = ({ invoice, onPayNow, index }) => {
             )}
           </div>
 
-          {/* Actions */}
-          <div className="flex items-center gap-2 md:w-40 md:justify-end">
+          {/* Actions — full-width stacked buttons on mobile, compact inline on desktop */}
+          <div className="flex items-stretch gap-2 md:w-auto md:justify-end">
             {canPay && (
-              <Button size="sm" onClick={() => onPayNow(invoice)} className="whitespace-nowrap">
+              <Button
+                size="sm"
+                onClick={() => onPayNow(invoice)}
+                className="flex-1 md:flex-none whitespace-nowrap"
+              >
                 <CreditCardIcon className="h-4 w-4 mr-1.5" />
                 Pay Now
               </Button>
@@ -153,7 +157,7 @@ const InvoiceRow = ({ invoice, onPayNow, index }) => {
             <Button
               size="sm"
               variant="ghost"
-              className="whitespace-nowrap"
+              className="flex-1 md:flex-none whitespace-nowrap"
               onClick={() => navigate(`/billing/${invoice._id}`)}
             >
               <ArrowDownTrayIcon className="h-4 w-4 mr-1.5" />

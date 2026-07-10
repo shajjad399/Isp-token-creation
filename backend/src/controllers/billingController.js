@@ -12,6 +12,15 @@ import ApiResponse from '../utils/ApiResponse.js';
 import { getPaginationParams } from '../utils/helpers.js';
 import { INVOICE_STATUS } from '../constants/invoiceStatus.js';
 import logger from '../config/logger.js';
+import { createAndSendNotification } from '../services/notificationService.js';
+import { NOTIFICATION_TYPES } from '../models/Notification.js';
+
+// ============================================================
+// Small helper — consistent, professional BDT money formatting
+// used inside notification titles/messages across this file.
+// ============================================================
+const formatMoney = (amount = 0) =>
+  `৳${Math.round((amount || 0) * 100) / 100}`.replace(/\.0+$/, '');
 
 // ============================================================
 // CREATE INVOICE (Admin only)
@@ -43,6 +52,24 @@ export const createInvoice = async (req, res, next) => {
     await invoice.populate('customer', 'name email phone');
 
     logger.info(`✅ Invoice created: ${invoice.invoiceNumber} for customer ${customer}`);
+
+    // Notify the customer immediately, telling them exactly how much they owe
+    // and by when — this is the trigger point for "you have a due amount".
+    if (invoice.status !== INVOICE_STATUS.DRAFT) {
+      await createAndSendNotification({
+        user: invoice.customer._id,
+        type: NOTIFICATION_TYPES.INVOICE_CREATED,
+        title: 'New Invoice Issued',
+        message: `Invoice ${invoice.invoiceNumber} has been generated. You have ${formatMoney(invoice.dueAmount)} due by ${new Date(invoice.dueDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}.`,
+        relatedInvoice: invoice._id,
+        priority: 'high',
+        metadata: {
+          invoiceNumber: invoice.invoiceNumber,
+          dueAmount: invoice.dueAmount,
+          dueDate: invoice.dueDate
+        }
+      }).catch((err) => logger.error('Failed to send invoice-created notification:', err));
+    }
 
     res.status(201).json(
       ApiResponse.success(invoice, 'Invoice created successfully', 201)
@@ -274,6 +301,20 @@ export const recordPayment = async (req, res, next) => {
 
     logger.info(`💰 Payment recorded on ${invoice.invoiceNumber}: ${amount} (${method})`);
 
+    // Let the customer know their payment landed, and what (if anything) is still due
+    const remaining = invoice.dueAmount;
+    await createAndSendNotification({
+      user: invoice.customer._id,
+      type: NOTIFICATION_TYPES.PAYMENT_RECEIVED,
+      title: 'Payment Received',
+      message: remaining > 0
+        ? `We've recorded ${formatMoney(amount)} against ${invoice.invoiceNumber}. Remaining due: ${formatMoney(remaining)}.`
+        : `We've recorded ${formatMoney(amount)} against ${invoice.invoiceNumber}. Your invoice is now fully paid — thank you!`,
+      relatedInvoice: invoice._id,
+      priority: 'medium',
+      metadata: { invoiceNumber: invoice.invoiceNumber, amount, remaining }
+    }).catch((err) => logger.error('Failed to send payment-received notification:', err));
+
     res.status(200).json(
       ApiResponse.success(invoice, 'Payment recorded successfully')
     );
@@ -397,6 +438,20 @@ export const approveClaim = async (req, res, next) => {
 
     logger.info(`✅ Manual payment claim approved on ${invoice.invoiceNumber}: ${payableAmount} via ${claim.method}`);
 
+    // Confirm to the customer that their bKash/Nagad/Rocket claim was verified
+    const remainingAfterClaim = invoice.dueAmount;
+    await createAndSendNotification({
+      user: invoice.customer._id,
+      type: NOTIFICATION_TYPES.PAYMENT_CLAIM_APPROVED,
+      title: 'Payment Verified',
+      message: remainingAfterClaim > 0
+        ? `Your ${claim.method} payment of ${formatMoney(payableAmount)} for ${invoice.invoiceNumber} has been verified. Remaining due: ${formatMoney(remainingAfterClaim)}.`
+        : `Your ${claim.method} payment of ${formatMoney(payableAmount)} for ${invoice.invoiceNumber} has been verified. Your invoice is now fully paid — thank you!`,
+      relatedInvoice: invoice._id,
+      priority: 'medium',
+      metadata: { invoiceNumber: invoice.invoiceNumber, amount: payableAmount, remaining: remainingAfterClaim }
+    }).catch((err) => logger.error('Failed to send claim-approved notification:', err));
+
     res.status(200).json(
       ApiResponse.success(invoice, 'Payment claim approved and recorded successfully')
     );
@@ -435,6 +490,16 @@ export const rejectClaim = async (req, res, next) => {
     await invoice.populate('customer', 'name email phone');
 
     logger.info(`❌ Manual payment claim rejected on ${invoice.invoiceNumber} (${claim.transactionId})`);
+
+    await createAndSendNotification({
+      user: invoice.customer._id,
+      type: NOTIFICATION_TYPES.PAYMENT_CLAIM_REJECTED,
+      title: 'Payment Could Not Be Verified',
+      message: `Your ${claim.method} payment claim (Txn: ${claim.transactionId}) for ${invoice.invoiceNumber} could not be verified${claim.reviewNote ? `: ${claim.reviewNote}` : '. Please double-check the transaction ID and try again.'}`,
+      relatedInvoice: invoice._id,
+      priority: 'high',
+      metadata: { invoiceNumber: invoice.invoiceNumber, transactionId: claim.transactionId }
+    }).catch((err) => logger.error('Failed to send claim-rejected notification:', err));
 
     res.status(200).json(
       ApiResponse.success(invoice, 'Payment claim rejected')

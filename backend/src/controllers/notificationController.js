@@ -24,6 +24,7 @@ export const getNotifications = async (req, res, next) => {
     const [notifications, total] = await Promise.all([
       Notification.find(query)
         .populate('relatedTicket', 'ticketId title')
+        .populate('relatedInvoice', 'invoiceNumber totalAmount amountPaid status dueDate')
         .populate('relatedUser', 'name email')
         .sort({ createdAt: -1 })
         .skip(skip)

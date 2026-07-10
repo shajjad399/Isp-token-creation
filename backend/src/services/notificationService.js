@@ -39,6 +39,7 @@ export const createAndSendNotification = async (payload) => {
 
   // Populate a couple of useful refs before sending to the client
   await notification.populate('relatedTicket', 'ticketId title status');
+  await notification.populate('relatedInvoice', 'invoiceNumber totalAmount amountPaid status dueDate');
 
   if (io) {
     try {

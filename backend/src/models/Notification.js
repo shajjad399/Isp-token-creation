@@ -51,7 +51,16 @@ const NOTIFICATION_TYPES = {
   // SLA Related
   SLA_BREACHED: 'sla_breached',
   SLA_WARNING: 'sla_warning',
-  SLA_RESOLVED: 'sla_resolved'
+  SLA_RESOLVED: 'sla_resolved',
+
+  // Billing / Invoice Related
+  INVOICE_CREATED: 'invoice_created',
+  INVOICE_DUE_REMINDER: 'invoice_due_reminder',
+  INVOICE_OVERDUE: 'invoice_overdue',
+  PAYMENT_RECEIVED: 'payment_received',
+  PAYMENT_CLAIM_SUBMITTED: 'payment_claim_submitted',
+  PAYMENT_CLAIM_APPROVED: 'payment_claim_approved',
+  PAYMENT_CLAIM_REJECTED: 'payment_claim_rejected'
 };
 
 const NOTIFICATION_PRIORITIES = {
@@ -185,6 +194,12 @@ const notificationSchema = new mongoose.Schema({
   relatedTicket: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Ticket',
+    index: true
+  },
+
+  relatedInvoice: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Invoice',
     index: true
   },
   

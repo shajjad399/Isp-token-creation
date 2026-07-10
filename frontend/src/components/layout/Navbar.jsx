@@ -119,12 +119,18 @@ const Navbar = ({ onMenuClick }) => {
                         </div>
                       );
 
+                      const linkTo = notif.relatedTicket
+                        ? `/tickets/${notif.relatedTicket._id}`
+                        : notif.relatedInvoice
+                        ? `/billing/${notif.relatedInvoice._id}`
+                        : null;
+
                       return (
                         <Menu.Item key={notif._id}>
                           {({ active }) => (
-                            notif.relatedTicket ? (
+                            linkTo ? (
                               <Link
-                                to={`/tickets/${notif.relatedTicket._id}`}
+                                to={linkTo}
                                 onClick={() => !notif.isRead && markAsRead(notif._id)}
                                 className={`block px-4 py-3 cursor-pointer ${active ? 'bg-gray-50 dark:bg-gray-700' : ''}`}
                               >
