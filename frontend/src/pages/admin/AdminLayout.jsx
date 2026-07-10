@@ -33,7 +33,7 @@ const AdminLayout = ({ children }) => {
   const menuItems = [
     { path: '/admin/dashboard', label: 'Dashboard', icon: HomeIcon },
     { path: '/admin/users', label: 'Users', icon: UsersIcon },
-    // ✅ Billing & Payments — notun add kora hoyeche (Billing Step 2, missing link fixed)
+    // ✅ Billing & Payments — notun add kora hoyeche (missing admin nav link fixed)
     { path: '/admin/billing', label: 'Billing', icon: CreditCardIcon },
     { path: '/live-chat', label: 'Live Chat', icon: ChatBubbleLeftRightIcon },
     { path: '/profile', label: 'Profile', icon: UserIcon },
