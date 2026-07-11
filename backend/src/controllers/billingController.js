@@ -12,7 +12,7 @@ import ApiResponse from '../utils/ApiResponse.js';
 import { getPaginationParams } from '../utils/helpers.js';
 import { INVOICE_STATUS } from '../constants/invoiceStatus.js';
 import logger from '../config/logger.js';
-import { createAndSendNotification } from '../services/notificationService.js';
+import { createAndSendNotification, notifyAdmins } from '../services/notificationService.js';
 import { NOTIFICATION_TYPES } from '../models/Notification.js';
 
 // ============================================================
@@ -369,6 +369,19 @@ export const claimPayment = async (req, res, next) => {
     await invoice.populate('customer', 'name email phone');
 
     logger.info(`🧾 Manual payment claim submitted on ${invoice.invoiceNumber}: ${amount} via ${method} (${transactionId})`);
+
+    // ✅ Notify admins that a bill payment needs verification (Payment
+    // tab of the admin notification bell).
+    notifyAdmins({
+      type: NOTIFICATION_TYPES.PAYMENT_CLAIM_SUBMITTED,
+      title: 'New Payment Claim',
+      message: `${invoice.customer?.name || 'A customer'} submitted a ${formatMoney(amount)} payment claim via ${method} for invoice ${invoice.invoiceNumber} — awaiting verification.`,
+      relatedInvoice: invoice._id,
+      priority: 'high',
+      metadata: { invoiceNumber: invoice.invoiceNumber, amount, method, transactionId }
+    }, { excludeUserId: req.user.id }).catch((err) =>
+      logger.error('Failed to send payment-claim notification to admins:', err)
+    );
 
     res.status(201).json(
       ApiResponse.success(invoice, 'Payment submitted successfully — awaiting verification', 201)

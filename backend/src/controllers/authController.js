@@ -10,6 +10,8 @@ import ApiError from '../utils/ApiError.js';
 import ApiResponse from '../utils/ApiResponse.js';
 import { generateTokens, verifyRefreshToken } from '../utils/generateToken.js';
 import { sendWelcomeEmail, sendPasswordResetEmail, sendVerificationEmail } from '../services/emailService.js';
+import { notifyAdmins } from '../services/notificationService.js';
+import { NOTIFICATION_TYPES } from '../models/Notification.js';
 import logger from '../config/logger.js';
 import crypto from 'crypto';
 
@@ -153,6 +155,20 @@ export const login = async (req, res, next) => {
     );
 
     logger.info(`User logged in: ${user.email}`);
+
+    // ✅ Let the admin panel know someone logged in (shows up under the
+    // "Others" tab of the admin notification bell). Skip when an admin
+    // logs in themselves — no need to notify admins about admin logins.
+    if (user.role !== 'admin') {
+      notifyAdmins({
+        type: NOTIFICATION_TYPES.USER_LOGIN,
+        title: 'User Logged In',
+        message: `${user.name} (${user.email}) just logged in.`,
+        relatedUser: user._id,
+        priority: 'low',
+        metadata: { name: user.name, email: user.email, role: user.role }
+      }).catch((err) => logger.error('Failed to send login notification to admins:', err));
+    }
   } catch (error) {
     console.error('❌ Login error:', error);
     next(error);
@@ -664,6 +680,19 @@ export const firebaseLogin = async (req, res, next) => {
     );
 
     logger.info(`Firebase login: ${user.email}`);
+
+    // ✅ Same login notification as the regular login flow, so admins
+    // see Firebase (Google) logins in the notification bell too.
+    if (user.role !== 'admin') {
+      notifyAdmins({
+        type: NOTIFICATION_TYPES.USER_LOGIN,
+        title: 'User Logged In',
+        message: `${user.name} (${user.email}) just logged in.`,
+        relatedUser: user._id,
+        priority: 'low',
+        metadata: { name: user.name, email: user.email, role: user.role }
+      }).catch((err) => logger.error('Failed to send login notification to admins:', err));
+    }
   } catch (error) {
     next(error);
   }

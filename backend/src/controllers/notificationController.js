@@ -12,11 +12,15 @@ import { emitNotificationRead, emitAllNotificationsRead } from '../services/noti
  */
 export const getNotifications = async (req, res, next) => {
   try {
-    const { page = 1, limit = 10, isRead } = req.query;
+    const { page = 1, limit = 10, isRead, category } = req.query;
 
     const query = { user: req.user.id };
     if (isRead !== undefined) {
       query.isRead = isRead === 'true';
+    }
+    // ✅ Powers the admin notification bell's 3 tabs: Token / Payment / Others
+    if (category && ['token', 'payment', 'other'].includes(category)) {
+      query.category = category;
     }
 
     const skip = (page - 1) * limit;
@@ -57,13 +61,37 @@ export const getNotifications = async (req, res, next) => {
  */
 export const getUnreadCount = async (req, res, next) => {
   try {
-    const count = await Notification.countDocuments({
-      user: req.user.id,
-      isRead: false
-    });
+    const { category } = req.query;
+
+    const query = { user: req.user.id, isRead: false };
+    if (category && ['token', 'payment', 'other'].includes(category)) {
+      query.category = category;
+    }
+
+    const count = await Notification.countDocuments(query);
 
     res.status(200).json(
       ApiResponse.success({ count }, 'Unread count fetched successfully')
+    );
+
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Get unread notification counts broken down by category
+ *          (Token / Payment / Others) — powers the admin notification
+ *          bell's per-tab badge numbers.
+ * @route   GET /api/notifications/category-counts
+ * @access  Private
+ */
+export const getCategoryCounts = async (req, res, next) => {
+  try {
+    const counts = await Notification.getCategoryCounts(req.user.id);
+
+    res.status(200).json(
+      ApiResponse.success(counts, 'Category counts fetched successfully')
     );
 
   } catch (error) {

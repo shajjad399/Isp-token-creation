@@ -5,7 +5,8 @@ import {
   markAsRead,
   markAllAsRead,
   deleteNotification,
-  getUnreadCount
+  getUnreadCount,
+  getCategoryCounts
 } from '../controllers/notificationController.js';
 import { auth } from '../middlewares/auth.js';
 
@@ -59,6 +60,20 @@ router.get('/', getNotifications);
  *         description: Unread count fetched successfully
  */
 router.get('/unread-count', getUnreadCount);
+
+/**
+ * @swagger
+ * /api/notifications/category-counts:
+ *   get:
+ *     summary: Get unread notification counts grouped by category (token/payment/other)
+ *     tags: [Notifications]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Category counts fetched successfully
+ */
+router.get('/category-counts', getCategoryCounts);
 
 /**
  * @swagger

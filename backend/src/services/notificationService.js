@@ -8,6 +8,7 @@
 // ============================================================
 
 import Notification from '../models/Notification.js';
+import User from '../models/User.js';
 import logger from '../config/logger.js';
 
 let io = null;
@@ -58,6 +59,48 @@ export const createAndSendNotification = async (payload) => {
 };
 
 /**
+ * ✅ Fan out a notification to every active admin, powering the admin
+ * notification bell (Token / Payment / Others tabs).
+ *
+ * Use this for anything the admin panel should surface — a new
+ * ticket/token, a bill payment event, a user login, etc. — instead of
+ * calling createAndSendNotification per-admin manually.
+ *
+ * @param {Object} payload - same shape as Notification schema fields,
+ *   EXCEPT `user` is omitted (it's set per-admin automatically).
+ * @param {Object} [options]
+ * @param {string|Object} [options.excludeUserId] - skip notifying this
+ *   user if they happen to be an admin (e.g. don't notify an admin about
+ *   their own login).
+ * @returns {Promise<Notification[]>}
+ */
+export const notifyAdmins = async (payload, options = {}) => {
+  try {
+    const admins = await User.find({ role: 'admin', isActive: true }).select('_id');
+
+    const excludeId = options.excludeUserId ? String(options.excludeUserId) : null;
+
+    const targets = admins.filter((admin) => String(admin._id) !== excludeId);
+
+    if (targets.length === 0) return [];
+
+    const results = await Promise.all(
+      targets.map((admin) =>
+        createAndSendNotification({ ...payload, user: admin._id }).catch((error) => {
+          logger.error(`Failed to notify admin ${admin._id}:`, error);
+          return null;
+        })
+      )
+    );
+
+    return results.filter(Boolean);
+  } catch (error) {
+    logger.error('notifyAdmins error:', error);
+    return [];
+  }
+};
+
+/**
  * ✅ Emit a "this notification was read" event so other open tabs/devices
  * remove the dot / update the list live, without needing to poll.
  */
@@ -91,6 +134,7 @@ export const emitAllNotificationsRead = async (userId) => {
 export default {
   initNotificationSocket,
   createAndSendNotification,
+  notifyAdmins,
   emitNotificationRead,
   emitAllNotificationsRead
 };

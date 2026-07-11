@@ -36,6 +36,7 @@ const NOTIFICATION_TYPES = {
   USER_ROLE_CHANGED: 'user_role_changed',
   USER_ACTIVATED: 'user_activated',
   USER_DEACTIVATED: 'user_deactivated',
+  USER_LOGIN: 'user_login',
   
   // System Related
   SYSTEM_ALERT: 'system_alert',
@@ -61,6 +62,50 @@ const NOTIFICATION_TYPES = {
   PAYMENT_CLAIM_SUBMITTED: 'payment_claim_submitted',
   PAYMENT_CLAIM_APPROVED: 'payment_claim_approved',
   PAYMENT_CLAIM_REJECTED: 'payment_claim_rejected'
+};
+
+// ============================================================
+// ✅ NOTIFICATION CATEGORIES - Powers the admin notification bell
+// (3 tabs: Token, Payment, Others)
+// ============================================================
+
+const NOTIFICATION_CATEGORIES = {
+  TOKEN: 'token',
+  PAYMENT: 'payment',
+  OTHER: 'other'
+};
+
+// Maps a notification `type` to the tab it should appear under in the
+// admin notification bell. Anything not listed here falls back to OTHER
+// (this is where login notifications live).
+const TYPE_CATEGORY_MAP = {
+  // Token (ticket) related
+  ticket_created: NOTIFICATION_CATEGORIES.TOKEN,
+  ticket_assigned: NOTIFICATION_CATEGORIES.TOKEN,
+  ticket_updated: NOTIFICATION_CATEGORIES.TOKEN,
+  ticket_open: NOTIFICATION_CATEGORIES.TOKEN,
+  ticket_in_progress: NOTIFICATION_CATEGORIES.TOKEN,
+  ticket_resolved: NOTIFICATION_CATEGORIES.TOKEN,
+  ticket_closed: NOTIFICATION_CATEGORIES.TOKEN,
+  ticket_reopened: NOTIFICATION_CATEGORIES.TOKEN,
+  ticket_escalated: NOTIFICATION_CATEGORIES.TOKEN,
+  ticket_merged: NOTIFICATION_CATEGORIES.TOKEN,
+  ticket_split: NOTIFICATION_CATEGORIES.TOKEN,
+  comment_added: NOTIFICATION_CATEGORIES.TOKEN,
+  comment_mention: NOTIFICATION_CATEGORIES.TOKEN,
+  comment_replied: NOTIFICATION_CATEGORIES.TOKEN,
+
+  // Payment / billing related
+  invoice_created: NOTIFICATION_CATEGORIES.PAYMENT,
+  invoice_due_reminder: NOTIFICATION_CATEGORIES.PAYMENT,
+  invoice_overdue: NOTIFICATION_CATEGORIES.PAYMENT,
+  payment_received: NOTIFICATION_CATEGORIES.PAYMENT,
+  payment_claim_submitted: NOTIFICATION_CATEGORIES.PAYMENT,
+  payment_claim_approved: NOTIFICATION_CATEGORIES.PAYMENT,
+  payment_claim_rejected: NOTIFICATION_CATEGORIES.PAYMENT
+
+  // Everything else (user_login, user_registered, system_alert, etc.)
+  // defaults to OTHER — see pre-save hook below.
 };
 
 const NOTIFICATION_PRIORITIES = {
@@ -142,6 +187,16 @@ const notificationSchema = new mongoose.Schema({
     type: String,
     enum: Object.values(NOTIFICATION_TYPES),
     required: [true, 'Notification type is required'],
+    index: true
+  },
+
+  // ✅ Groups this notification into one of the 3 admin notification-bell
+  // tabs (Token / Payment / Others). Auto-derived from `type` on save if
+  // not explicitly provided — see pre-save hook.
+  category: {
+    type: String,
+    enum: Object.values(NOTIFICATION_CATEGORIES),
+    default: NOTIFICATION_CATEGORIES.OTHER,
     index: true
   },
   
@@ -506,6 +561,12 @@ notificationSchema.pre('save', function(next) {
     });
   }
   
+  // ✅ Auto-derive the admin-bell category from the notification type
+  // whenever it wasn't explicitly set by the caller.
+  if (!this.category || this.category === NOTIFICATION_CATEGORIES.OTHER) {
+    this.category = TYPE_CATEGORY_MAP[this.type] || NOTIFICATION_CATEGORIES.OTHER;
+  }
+
   // Auto-set status from type
   if (!this.status) {
     const statusMap = {
@@ -660,6 +721,32 @@ notificationSchema.statics.cleanup = function(days = 30) {
   });
 };
 
+// ✅ Unread counts broken down per admin-bell tab: Token / Payment / Others.
+// Used to render the little badge numbers on each tab.
+notificationSchema.statics.getCategoryCounts = async function(userId) {
+  const rows = await this.aggregate([
+    { $match: { user: new mongoose.Types.ObjectId(userId), isDeleted: false, isRead: false } },
+    { $group: { _id: '$category', count: { $sum: 1 } } }
+  ]);
+
+  const counts = {
+    token: 0,
+    payment: 0,
+    other: 0
+  };
+
+  rows.forEach((row) => {
+    if (row._id && counts[row._id] !== undefined) {
+      counts[row._id] = row.count;
+    } else {
+      counts.other += row.count;
+    }
+  });
+
+  counts.total = counts.token + counts.payment + counts.other;
+  return counts;
+};
+
 notificationSchema.statics.getCounts = function(userId) {
   return this.aggregate([
     { $match: { user: userId, isDeleted: false } },
@@ -710,6 +797,8 @@ export {
   NOTIFICATION_PRIORITIES,
   DELIVERY_STATUS,
   NOTIFICATION_CHANNELS,
+  NOTIFICATION_CATEGORIES,
+  TYPE_CATEGORY_MAP,
   STATUS_COLORS,
   STATUS_ICONS
 };

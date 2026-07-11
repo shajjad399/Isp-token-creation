@@ -8,7 +8,7 @@
 import Ticket from '../models/Ticket.js';
 import User from '../models/User.js';
 import Notification from '../models/Notification.js';
-import { createAndSendNotification } from '../services/notificationService.js';
+import { createAndSendNotification, notifyAdmins } from '../services/notificationService.js';
 import ApiError from '../utils/ApiError.js';
 import ApiResponse from '../utils/ApiResponse.js';
 import { generateTicketId } from '../utils/helpers.js';
@@ -88,6 +88,20 @@ export const createTicket = async (req, res, next) => {
       relatedTicket: ticket._id,
       metadata: { ticketId, title }
     });
+
+    // ✅ Let admins know a new token/ticket came in (Token tab of the
+    // admin notification bell), so they don't have to keep refreshing
+    // the token management list.
+    notifyAdmins({
+      type: NOTIFICATION_TYPE_MAP.created,
+      title: 'New Token Created',
+      message: `${ticket.customer?.name || 'A customer'} created a new token #${ticketId}: ${title}`,
+      relatedTicket: ticket._id,
+      priority: priority || 'medium',
+      metadata: { ticketId, title }
+    }, { excludeUserId: req.user.id }).catch((err) =>
+      logger.error('Failed to send new-token notification to admins:', err)
+    );
 
     // Send email notification
     sendTicketNotification(ticket, 'created').catch(err => {

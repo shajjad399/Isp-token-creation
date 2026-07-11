@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../hooks/useTheme';
+import AdminNotificationBell from './AdminNotificationBell';
 import {
   HomeIcon,
   UsersIcon,
@@ -120,8 +121,9 @@ const menuItems = [
               </button>
               <h2 className="text-lg md:text-xl font-semibold text-gray-800 dark:text-white truncate">Admin Panel</h2>
             </div>
-            <div className="hidden sm:flex items-center space-x-4">
-              <span className="text-sm text-gray-500 dark:text-gray-400 truncate">
+            <div className="flex items-center gap-2 md:gap-4 flex-shrink-0">
+              <AdminNotificationBell />
+              <span className="hidden sm:block text-sm text-gray-500 dark:text-gray-400 truncate">
                 {user?.name} ({user?.role})
               </span>
             </div>
