@@ -2,12 +2,16 @@
 // backend/src/services/emailService.js
 // ============================================================
 // Description: Complete email service with all email templates
-// Version: 3.1.0 (Migrated to Gmail SMTP)
+// Version: 3.3.0 (Gmail SMTP - Production Ready)
 // ============================================================
 
 import env from '../config/env.js';
 import logger from '../config/logger.js';
 import nodemailer from 'nodemailer';
+import dns from 'dns';
+
+// ✅ Force IPv4 only (disable IPv6) - Fix for Render ENETUNREACH error
+dns.setDefaultResultOrder('ipv4first');
 
 // Create transporter with Gmail SMTP settings
 const transporter = nodemailer.createTransport({
@@ -18,11 +22,11 @@ const transporter = nodemailer.createTransport({
     user: env.email.user,
     pass: env.email.pass
   },
-  // Connection settings
-  connectionTimeout: 10000,
-  greetingTimeout: 10000,
-  socketTimeout: 15000,
-  // Debug mode for development
+  // Connection settings with timeouts
+  connectionTimeout: 15000,
+  greetingTimeout: 15000,
+  socketTimeout: 20000,
+  // Debug mode for development only
   debug: env.isDevelopment || false,
   logger: env.isDevelopment || false
 });
@@ -38,31 +42,16 @@ class EmailService {
     if (!env.email?.user || !env.email?.pass) {
       console.warn('⚠️ Email credentials not configured. Email service will be disabled.');
       console.warn('   Please set EMAIL_USER and EMAIL_PASS in environment variables.');
+      console.warn('   Make sure you are using App Password: https://myaccount.google.com/apppasswords');
       this.initialized = false;
       return;
     }
 
-    // Verify SMTP connection
-    await this.verifyConnection();
-  }
-
-  async verifyConnection() {
-    try {
-      // Verify SMTP connection
-      await transporter.verify();
-      this.initialized = true;
-      logger.info(`✅ Email service initialized successfully (Gmail SMTP - ${env.email.user})`);
-      logger.info(`   Host: ${env.email.host}:${env.email.port}`);
-      return true;
-    } catch (error) {
-      console.warn('⚠️ Email service initialization failed:');
-      console.warn(`   Error: ${error.message}`);
-      console.warn('   Please check your Gmail SMTP credentials.');
-      console.warn('   Make sure you are using App Password, not your regular Gmail password.');
-      console.warn('   How to generate App Password: https://myaccount.google.com/apppasswords');
-      this.initialized = false;
-      return false;
-    }
+    // Set initialized to true - we'll handle connection errors during send
+    this.initialized = true;
+    logger.info(`✅ Email service initialized (Gmail SMTP - ${env.email.user})`);
+    logger.info(`   Host: ${env.email.host}:${env.email.port}`);
+    logger.info(`   IPv4 forced: Enabled`);
   }
 
   /**
@@ -100,8 +89,13 @@ class EmailService {
         }));
       }
 
-      // Send email using Nodemailer
-      const info = await transporter.sendMail(mailOptions);
+      // Send email using Nodemailer with timeout
+      const sendPromise = transporter.sendMail(mailOptions);
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Send timeout - Please try again later')), 20000)
+      );
+      
+      const info = await Promise.race([sendPromise, timeoutPromise]);
 
       logger.info(`📧 Email sent successfully`);
       logger.info(`   To: ${to}`);
@@ -110,6 +104,7 @@ class EmailService {
       logger.info(`   Response: ${info.response || 'OK'}`);
       
       return true;
+      
     } catch (error) {
       logger.error(`❌ Failed to send email`);
       logger.error(`   To: ${to}`);
@@ -133,10 +128,68 @@ class EmailService {
         logger.error('   Make sure you are using an App Password: https://myaccount.google.com/apppasswords');
       } else if (error.code === 'ECONNECTION' || error.code === 'ESOCKET') {
         logger.error('   🔌 Connection failed. Please check your network and EMAIL_HOST/EMAIL_PORT settings.');
+      } else if (error.code === 'ENETUNREACH') {
+        logger.error('   🌐 Network unreachable. Render may be blocking SMTP port.');
+        logger.error('   Trying alternative port 465...');
+        // Try alternative port
+        return await this.tryAlternativePort(to, subject, html, text, attachments);
       } else if (error.code === 'ETIMEDOUT') {
         logger.error('   ⏱️ Connection timed out. Please check your internet connection.');
       }
       
+      return false;
+    }
+  }
+
+  /**
+   * Try alternative SMTP port (465) if 587 fails
+   */
+  async tryAlternativePort(to, subject, html, text, attachments) {
+    try {
+      logger.info('🔄 Attempting to send via alternative port 465...');
+      
+      // Create new transporter for port 465
+      const altTransporter = nodemailer.createTransport({
+        host: 'smtp.gmail.com',
+        port: 465,
+        secure: true,
+        auth: {
+          user: env.email.user,
+          pass: env.email.pass
+        },
+        connectionTimeout: 15000,
+        greetingTimeout: 15000,
+        socketTimeout: 20000
+      });
+
+      const mailOptions = {
+        from: env.email.from || env.email.user,
+        to: Array.isArray(to) ? to.join(', ') : to,
+        subject: subject || 'No Subject',
+        html: html || '',
+        text: text || html?.replace(/<[^>]*>/g, '') || '',
+      };
+
+      if (attachments && attachments.length > 0) {
+        mailOptions.attachments = attachments.map((a) => ({
+          filename: a.filename || 'attachment',
+          ...(a.content && { content: Buffer.from(a.content, 'base64') }),
+          ...(a.path && { path: a.path }),
+          ...(a.cid && { cid: a.cid })
+        }));
+      }
+
+      const info = await altTransporter.sendMail(mailOptions);
+      
+      logger.info(`📧 Email sent successfully via port 465`);
+      logger.info(`   To: ${to}`);
+      logger.info(`   Subject: ${subject}`);
+      logger.info(`   Message ID: ${info.messageId}`);
+      
+      return true;
+      
+    } catch (error) {
+      logger.error(`❌ Alternative port also failed: ${error.message}`);
       return false;
     }
   }
@@ -370,7 +423,7 @@ class EmailService {
   }
 
   // ============================================================
-  // TICKET TEMPLATES (UNCHANGED)
+  // TICKET TEMPLATES
   // ============================================================
 
   _ticketCreatedTemplate(name, ticket) {
@@ -478,7 +531,7 @@ class EmailService {
 }
 
 // ============================================================
-// ✅ EXPORT (UNCHANGED)
+// ✅ EXPORT
 // ============================================================
 
 const emailService = new EmailService();
