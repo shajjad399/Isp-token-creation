@@ -5,10 +5,14 @@
 // Version: 3.3.0 (Gmail SMTP - Production Ready)
 // ============================================================
 
+console.log("📧 sendEmail() called");
+console.log("To:", to);
+console.log("Subject:", subject);
 import env from '../config/env.js';
 import logger from '../config/logger.js';
 import nodemailer from 'nodemailer';
 import dns from 'dns';
+
 
 // ✅ Force IPv4 only (disable IPv6) - Fix for Render ENETUNREACH error
 dns.setDefaultResultOrder('ipv4first');
