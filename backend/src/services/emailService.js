@@ -15,17 +15,27 @@ dns.setDefaultResultOrder('ipv4first');
 
 // Create transporter with Gmail SMTP settings
 const transporter = nodemailer.createTransport({
-  host: env.email.host || 'smtp.gmail.com',
-  port: env.email.port || 587,
-  secure: env.email.secure || false,
+  host: env.email.host || "smtp.gmail.com",
+  port: Number(env.email.port) || 587,
+  secure: false,
+  requireTLS: true,
+
   auth: {
     user: env.email.user,
-    pass: env.email.pass
+    pass: env.email.pass,
   },
-  // Connection settings with timeouts
-  connectionTimeout: 15000,
-  greetingTimeout: 15000,
-  socketTimeout: 20000,
+
+  family: 4,
+
+  tls: {
+    rejectUnauthorized: false,
+    minVersion: "TLSv1.2"
+  },
+
+  connectionTimeout: 30000,
+  greetingTimeout: 30000,
+  socketTimeout: 30000,
+
   // Debug mode for development only
   debug: env.isDevelopment || false,
   logger: env.isDevelopment || false
