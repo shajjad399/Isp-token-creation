@@ -44,6 +44,12 @@ import billingRoutes from './routes/billingRoutes.js';
 
 const app = express();
 
+// ✅ Render (and most hosts) put the app behind a reverse proxy, which sets
+// X-Forwarded-For. Without this, express-rate-limit throws
+// ERR_ERL_UNEXPECTED_X_FORWARDED_FOR and can't reliably tell users apart.
+// `1` = trust exactly one hop (the platform's own proxy) — safer than `true`.
+app.set('trust proxy', 1);
+
 // ============================================================
 // ✅ CORS CONFIGURATION - PRODUCTION READY
 // ============================================================
