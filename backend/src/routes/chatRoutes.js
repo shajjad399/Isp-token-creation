@@ -9,10 +9,11 @@ import {
   getQueue,
   getMyActiveChats,
   claimChat,
-  closeChat
+  closeChat,
+  deleteChat
 } from '../controllers/chatController.js';
 import { auth } from '../middlewares/auth.js';
-import { isAgent } from '../middlewares/role.js';
+import { isAgent, isAdmin } from '../middlewares/role.js';
 import { validate } from '../middlewares/validate.js';
 import {
   startChatSchema,
@@ -45,5 +46,6 @@ router.get('/:id', getChatById);
 router.post('/:id/messages', validate(sendMessageSchema), sendMessage);
 router.patch('/:id/read', markChatRead);
 router.patch('/:id/close', validate(closeChatSchema), closeChat);
+router.delete('/:id', isAdmin, deleteChat);
 
 export default router;

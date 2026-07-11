@@ -14,12 +14,12 @@ import { useChat } from '../hooks/useChat';
 import Avatar from '../components/ui/Avatar';
 import Button from '../components/ui/Button';
 import toast from 'react-hot-toast';
-import { ChatBubbleLeftRightIcon, PaperAirplaneIcon, InboxIcon } from '@heroicons/react/24/outline';
+import { ChatBubbleLeftRightIcon, PaperAirplaneIcon, InboxIcon, TrashIcon } from '@heroicons/react/24/outline';
 
 // ------------------------------------------------------------
 // Chat panel: renders whichever chat (queued or active) is selected
 // ------------------------------------------------------------
-const ChatPanel = ({ chatId, onClaimed }) => {
+const ChatPanel = ({ chatId, onClaimed, isAdmin, onDeleted }) => {
   const { user } = useAuth();
   const [text, setText] = useState('');
   const scrollRef = useRef(null);
@@ -54,6 +54,18 @@ const ChatPanel = ({ chatId, onClaimed }) => {
     onClaimed?.(chat._id);
   };
 
+  const handleDelete = async () => {
+    if (!window.confirm(`Delete chat with "${chat.customer?.name || 'this user'}"? This cannot be undone.`)) return;
+    try {
+      await api.delete(`/chats/${chat._id}`);
+      toast.success('Chat deleted');
+      onDeleted?.(chat._id);
+    } catch (error) {
+      console.error('Failed to delete chat:', error);
+      toast.error(error.response?.data?.message || 'Failed to delete chat');
+    }
+  };
+
   const handleSend = async (e) => {
     e.preventDefault();
     if (!text.trim()) return;
@@ -68,18 +80,30 @@ const ChatPanel = ({ chatId, onClaimed }) => {
         <div className="flex items-center gap-3">
           <Avatar name={chat.customer?.name} src={getFileUrl(chat.customer?.avatar)} />
           <div>
-            <p className="font-semibold text-gray-800 dark:text-white">{chat.customer?.name}</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400">{chat.customer?.email}</p>
+            <p className="font-semibold text-gray-800 dark:text-white">{chat.customer?.name || 'Deleted user'}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">{chat.customer?.email || 'This account no longer exists'}</p>
           </div>
         </div>
-        {chat.status === 'open' && (
-          <Button size="sm" onClick={handleClaim}>Claim chat</Button>
-        )}
-        {chat.status === 'closed' && (
-          <span className="text-xs px-2 py-1 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
-            Closed
-          </span>
-        )}
+        <div className="flex items-center gap-2">
+          {chat.status === 'open' && (
+            <Button size="sm" onClick={handleClaim}>Claim chat</Button>
+          )}
+          {chat.status === 'closed' && (
+            <span className="text-xs px-2 py-1 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
+              Closed
+            </span>
+          )}
+          {isAdmin && (
+            <button
+              onClick={handleDelete}
+              className="p-2 rounded-xl text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+              aria-label="Delete chat"
+              title="Delete chat"
+            >
+              <TrashIcon className="w-4 h-4" />
+            </button>
+          )}
+        </div>
       </div>
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50 dark:bg-gray-900">
@@ -128,6 +152,8 @@ const ChatPanel = ({ chatId, onClaimed }) => {
 // ------------------------------------------------------------
 const LiveChat = () => {
   const socket = useSocket();
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
   const [queue, setQueue] = useState([]);
   const [active, setActive] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
@@ -153,6 +179,29 @@ const LiveChat = () => {
     loadLists();
   }, [loadLists]);
 
+  // Remove a deleted chat from local state without a full refetch
+  const removeChatFromLists = useCallback((chatId) => {
+    setQueue((prev) => prev.filter((c) => c._id !== chatId));
+    setActive((prev) => prev.filter((c) => c._id !== chatId));
+    setSelectedId((prev) => (prev === chatId ? null : prev));
+  }, []);
+
+  // Admin-only: permanently delete a chat (e.g. one left behind by a
+  // deleted user account, which shows up with a "?" avatar).
+  const handleDeleteChat = async (chatId, customerName, e) => {
+    e.stopPropagation();
+    if (!window.confirm(`Delete chat with "${customerName || 'this user'}"? This cannot be undone.`)) return;
+
+    try {
+      await api.delete(`/chats/${chatId}`);
+      removeChatFromLists(chatId);
+      toast.success('Chat deleted');
+    } catch (error) {
+      console.error('Failed to delete chat:', error);
+      toast.error(error.response?.data?.message || 'Failed to delete chat');
+    }
+  };
+
   // Live updates: new chat in queue, chat claimed by someone, new message badges
   useEffect(() => {
     if (!socket) return;
@@ -164,11 +213,13 @@ const LiveChat = () => {
     const onClaimed = () => loadLists();
     const onNewMessageAlert = () => loadLists();
     const onClosed = () => loadLists();
+    const onDeleted = ({ chatId }) => removeChatFromLists(chatId);
 
     socket.on('chat_started', onStarted);
     socket.on('chat_claimed', onClaimed);
     socket.on('chat_new_message_alert', onNewMessageAlert);
     socket.on('chat_closed', onClosed);
+    socket.on('chat_deleted', onDeleted);
     // ✅ Resync the whole inbox after any (re)connect — covers network
     // drops, phone screen lock/unlock, and backend restarts, where
     // events missed while disconnected would otherwise never arrive.
@@ -179,9 +230,10 @@ const LiveChat = () => {
       socket.off('chat_claimed', onClaimed);
       socket.off('chat_new_message_alert', onNewMessageAlert);
       socket.off('chat_closed', onClosed);
+      socket.off('chat_deleted', onDeleted);
       socket.off('connect', loadLists);
     };
-  }, [socket, loadLists]);
+  }, [socket, loadLists, removeChatFromLists]);
 
   const handleClaimed = (chatId) => {
     loadLists();
@@ -209,15 +261,26 @@ const LiveChat = () => {
             <button
               key={c._id}
               onClick={() => setSelectedId(c._id)}
-              className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-gray-700 ${
+              className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-gray-700 group ${
                 selectedId === c._id ? 'bg-blue-50 dark:bg-blue-900/20' : ''
               }`}
             >
               <Avatar name={c.customer?.name} src={getFileUrl(c.customer?.avatar)} size="sm" />
-              <div className="min-w-0">
-                <p className="text-sm font-medium text-gray-800 dark:text-white truncate">{c.customer?.name}</p>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-gray-800 dark:text-white truncate">{c.customer?.name || 'Deleted user'}</p>
                 <p className="text-xs text-gray-500 truncate">{c.lastMessagePreview || 'New chat'}</p>
               </div>
+              {isAdmin && (
+                <span
+                  role="button"
+                  onClick={(e) => handleDeleteChat(c._id, c.customer?.name, e)}
+                  className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                  aria-label="Delete chat"
+                  title="Delete chat"
+                >
+                  <TrashIcon className="w-4 h-4" />
+                </span>
+              )}
             </button>
           ))}
 
@@ -231,18 +294,29 @@ const LiveChat = () => {
             <button
               key={c._id}
               onClick={() => setSelectedId(c._id)}
-              className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-gray-700 ${
+              className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-gray-700 group ${
                 selectedId === c._id ? 'bg-blue-50 dark:bg-blue-900/20' : ''
               }`}
             >
               <Avatar name={c.customer?.name} src={getFileUrl(c.customer?.avatar)} size="sm" />
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-gray-800 dark:text-white truncate">{c.customer?.name}</p>
+                <p className="text-sm font-medium text-gray-800 dark:text-white truncate">{c.customer?.name || 'Deleted user'}</p>
                 <p className="text-xs text-gray-500 truncate">{c.lastMessagePreview}</p>
               </div>
               {c.unreadCount?.agent > 0 && (
-                <span className="text-[10px] bg-blue-600 text-white rounded-full px-1.5 py-0.5">
+                <span className="text-[10px] bg-blue-600 text-white rounded-full px-1.5 py-0.5 flex-shrink-0">
                   {c.unreadCount.agent}
+                </span>
+              )}
+              {isAdmin && (
+                <span
+                  role="button"
+                  onClick={(e) => handleDeleteChat(c._id, c.customer?.name, e)}
+                  className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                  aria-label="Delete chat"
+                  title="Delete chat"
+                >
+                  <TrashIcon className="w-4 h-4" />
                 </span>
               )}
             </button>
@@ -251,7 +325,12 @@ const LiveChat = () => {
       </div>
 
       {/* Right: chat panel */}
-      <ChatPanel chatId={selectedId} onClaimed={handleClaimed} />
+      <ChatPanel
+        chatId={selectedId}
+        onClaimed={handleClaimed}
+        isAdmin={isAdmin}
+        onDeleted={removeChatFromLists}
+      />
     </div>
   );
 };

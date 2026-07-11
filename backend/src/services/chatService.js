@@ -71,6 +71,17 @@ export const emitChatClosed = (chat) => {
   }
 };
 
+/** An admin permanently deleted a chat - remove it from every open inbox live. */
+export const emitChatDeleted = (chatId) => {
+  if (!io) return;
+  try {
+    io.to('agents').emit('chat_deleted', { chatId });
+    io.to(`chat_${chatId}`).emit('chat_deleted', { chatId });
+  } catch (error) {
+    logger.error('chatService emitChatDeleted error:', error);
+  }
+};
+
 /** Messages were marked read - update read receipts live for the other side. */
 export const emitChatRead = (chatId, readerRole) => {
   if (!io) return;
@@ -87,5 +98,6 @@ export default {
   emitChatMessage,
   emitChatClaimed,
   emitChatClosed,
+  emitChatDeleted,
   emitChatRead
 };

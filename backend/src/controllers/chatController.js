@@ -15,6 +15,7 @@ import {
   emitChatMessage,
   emitChatClaimed,
   emitChatClosed,
+  emitChatDeleted,
   emitChatRead
 } from '../services/chatService.js';
 
@@ -250,6 +251,34 @@ export const claimChat = async (req, res, next) => {
     );
 
     logger.info(`Chat ${chat._id} claimed by ${req.user.email}`);
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ============================================================
+// ✅ DELETE CHAT (Admin only)
+// Permanently removes a chat session — used e.g. to clean up chats
+// left behind for a customer whose account was deleted (shows up as
+// a "?" avatar in the inbox since there's no user left to resolve).
+// ============================================================
+export const deleteChat = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const chat = await Chat.findByIdAndDelete(id);
+
+    if (!chat) {
+      throw new ApiError(404, 'Chat not found');
+    }
+
+    emitChatDeleted(chat._id);
+
+    res.status(200).json(
+      ApiResponse.success(null, 'Chat deleted successfully')
+    );
+
+    logger.info(`Chat ${chat._id} deleted by ${req.user.email}`);
   } catch (error) {
     next(error);
   }

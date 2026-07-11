@@ -7,6 +7,7 @@
 
 import User from '../models/User.js';
 import Ticket from '../models/Ticket.js';
+import Chat from '../models/Chat.js';
 import Notification from '../models/Notification.js';
 import ApiError from '../utils/ApiError.js';
 import logger from '../config/logger.js';
@@ -151,6 +152,7 @@ class AdminService {
 
       // Clean up related data
       await Ticket.deleteMany({ customer: userId });
+      await Chat.deleteMany({ customer: userId });
       await Notification.deleteMany({ user: userId });
 
       logger.info(`Admin deleted user: ${user.email}`);

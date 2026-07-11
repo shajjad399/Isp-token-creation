@@ -6,6 +6,9 @@
 // ============================================================
 
 import User from '../models/User.js';
+import Ticket from '../models/Ticket.js';
+import Chat from '../models/Chat.js';
+import Notification from '../models/Notification.js';
 import ApiError from '../utils/ApiError.js';
 import ApiResponse from '../utils/ApiResponse.js';
 import { generateTokens, verifyRefreshToken } from '../utils/generateToken.js';
@@ -616,6 +619,12 @@ export const deleteUser = async (req, res, next) => {
     if (!user) {
       throw new ApiError(404, 'User not found');
     }
+
+    // Clean up related data so nothing orphaned is left pointing at a
+    // deleted user (e.g. a Live Chat entry with no customer to resolve).
+    await Ticket.deleteMany({ customer: id });
+    await Chat.deleteMany({ customer: id });
+    await Notification.deleteMany({ user: id });
 
     res.status(200).json(
       ApiResponse.success(null, 'User deleted successfully')
