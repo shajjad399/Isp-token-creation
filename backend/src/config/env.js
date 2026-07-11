@@ -2,7 +2,7 @@
 // backend/src/config/env.js
 // ============================================================
 // Description: Environment configuration
-// Version: 2.0.0
+// Version: 2.1.0 (Updated for Gmail SMTP)
 // ============================================================
 
 import dotenv from 'dotenv';
@@ -51,10 +51,14 @@ const env = {
     refreshExpire: process.env.JWT_REFRESH_EXPIRE || '30d'
   },
   
-  // ✅ Email - via Resend HTTP API (SMTP ports are blocked on Render free tier)
+  // ✅ Email - via Gmail SMTP (Nodemailer) - UPDATED
   email: {
-    resendApiKey: process.env.RESEND_API_KEY || '',
-    from: process.env.EMAIL_FROM || 'onboarding@resend.dev'
+    host: process.env.EMAIL_HOST || 'smtp.gmail.com',
+    port: parseInt(process.env.EMAIL_PORT) || 587,
+    secure: process.env.EMAIL_SECURE === 'true' || false,
+    user: process.env.EMAIL_USER || '',
+    pass: process.env.EMAIL_PASS || '',
+    from: process.env.EMAIL_FROM || 'noreply@ispticketing.com'
   },
   
   // Frontend
@@ -86,9 +90,10 @@ const env = {
     apiSecret: process.env.CLOUDINARY_API_SECRET || ''
   },
   
-  // Features
+  // Features - UPDATED
   features: {
-    enableEmail: process.env.ENABLE_EMAIL === 'true' || !!process.env.RESEND_API_KEY,
+    enableEmail: process.env.ENABLE_EMAIL === 'true' || 
+                 (!!process.env.EMAIL_USER && !!process.env.EMAIL_PASS),
     enableSms: process.env.ENABLE_SMS === 'true',
     enableNotifications: process.env.ENABLE_NOTIFICATIONS === 'true'
   },
@@ -110,7 +115,9 @@ if (env.isDevelopment) {
   console.log(`  FRONTEND_URL: ${env.frontendUrl}`);
   console.log(`  DATABASE: ${env.mongodbUri.split('/').pop()}`);
   console.log(`  EMAIL_ENABLED: ${env.features.enableEmail}`);
-  console.log(`  EMAIL_USER: ${env.email.resendApiKey ? '✅ Configured' : '❌ Not configured'}`);
+  console.log(`  EMAIL_USER: ${env.email.user ? '✅ Configured' : '❌ Not configured'}`);
+  console.log(`  EMAIL_HOST: ${env.email.host}`);
+  console.log(`  EMAIL_PORT: ${env.email.port}`);
 }
 
 // ============================================================

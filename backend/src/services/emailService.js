@@ -2,13 +2,30 @@
 // backend/src/services/emailService.js
 // ============================================================
 // Description: Complete email service with all email templates
-// Version: 3.0.0
+// Version: 3.1.0 (Migrated to Gmail SMTP)
 // ============================================================
 
 import env from '../config/env.js';
 import logger from '../config/logger.js';
+import nodemailer from 'nodemailer';
 
-const RESEND_API_URL = 'https://api.resend.com/emails';
+// Create transporter with Gmail SMTP settings
+const transporter = nodemailer.createTransport({
+  host: env.email.host || 'smtp.gmail.com',
+  port: env.email.port || 587,
+  secure: env.email.secure || false,
+  auth: {
+    user: env.email.user,
+    pass: env.email.pass
+  },
+  // Connection settings
+  connectionTimeout: 10000,
+  greetingTimeout: 10000,
+  socketTimeout: 15000,
+  // Debug mode for development
+  debug: env.isDevelopment || false,
+  logger: env.isDevelopment || false
+});
 
 class EmailService {
   constructor() {
@@ -16,19 +33,40 @@ class EmailService {
     this.init();
   }
 
-  init() {
-    if (!env.email?.resendApiKey) {
-      console.warn('⚠️ RESEND_API_KEY not configured. Email service will be disabled.');
+  async init() {
+    // Check if Gmail SMTP credentials are configured
+    if (!env.email?.user || !env.email?.pass) {
+      console.warn('⚠️ Email credentials not configured. Email service will be disabled.');
+      console.warn('   Please set EMAIL_USER and EMAIL_PASS in environment variables.');
       this.initialized = false;
       return;
     }
 
-    this.initialized = true;
-    logger.info('✅ Email service initialized successfully (Resend API)');
+    // Verify SMTP connection
+    await this.verifyConnection();
+  }
+
+  async verifyConnection() {
+    try {
+      // Verify SMTP connection
+      await transporter.verify();
+      this.initialized = true;
+      logger.info(`✅ Email service initialized successfully (Gmail SMTP - ${env.email.user})`);
+      logger.info(`   Host: ${env.email.host}:${env.email.port}`);
+      return true;
+    } catch (error) {
+      console.warn('⚠️ Email service initialization failed:');
+      console.warn(`   Error: ${error.message}`);
+      console.warn('   Please check your Gmail SMTP credentials.');
+      console.warn('   Make sure you are using App Password, not your regular Gmail password.');
+      console.warn('   How to generate App Password: https://myaccount.google.com/apppasswords');
+      this.initialized = false;
+      return false;
+    }
   }
 
   /**
-   * Send email
+   * Send email using Nodemailer with Gmail SMTP
    */
   async sendEmail({ to, subject, html, text, attachments = [] }) {
     if (!this.initialized) {
@@ -36,39 +74,69 @@ class EmailService {
       return false;
     }
 
+    // Validate recipient
+    if (!to) {
+      logger.error('❌ No recipient specified');
+      return false;
+    }
+
     try {
-      const response = await fetch(RESEND_API_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${env.email.resendApiKey}`
-        },
-        body: JSON.stringify({
-          from: env.email.from,
-          to: [to],
-          subject,
-          html,
-          text: text || html?.replace(/<[^>]*>/g, '') || '',
-          // Resend expects base64 content for attachments
-          attachments: attachments.map((a) => ({
-            filename: a.filename,
-            content: a.content,
-            path: a.url
-          }))
-        })
-      });
+      // Prepare mail options
+      const mailOptions = {
+        from: env.email.from || env.email.user,
+        to: Array.isArray(to) ? to.join(', ') : to,
+        subject: subject || 'No Subject',
+        html: html || '',
+        text: text || html?.replace(/<[^>]*>/g, '') || '',
+      };
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        logger.error(`❌ Failed to send email to ${to}:`, data?.message || response.statusText);
-        return false;
+      // Handle attachments for Nodemailer
+      if (attachments && attachments.length > 0) {
+        mailOptions.attachments = attachments.map((a) => ({
+          filename: a.filename || 'attachment',
+          ...(a.content && { content: Buffer.from(a.content, 'base64') }),
+          ...(a.path && { path: a.path }),
+          ...(a.cid && { cid: a.cid })
+        }));
       }
 
-      logger.info(`📧 Email sent to ${to}: ${data.id}`);
+      // Send email using Nodemailer
+      const info = await transporter.sendMail(mailOptions);
+
+      logger.info(`📧 Email sent successfully`);
+      logger.info(`   To: ${to}`);
+      logger.info(`   Subject: ${subject}`);
+      logger.info(`   Message ID: ${info.messageId}`);
+      logger.info(`   Response: ${info.response || 'OK'}`);
+      
       return true;
     } catch (error) {
-      logger.error(`❌ Failed to send email to ${to}:`, error.message);
+      logger.error(`❌ Failed to send email`);
+      logger.error(`   To: ${to}`);
+      logger.error(`   Subject: ${subject}`);
+      logger.error(`   Error: ${error.message}`);
+      
+      // Log additional error details for debugging
+      if (error.code) {
+        logger.error(`   Error Code: ${error.code}`);
+      }
+      if (error.response) {
+        logger.error(`   SMTP Response: ${error.response}`);
+      }
+      if (error.responseCode) {
+        logger.error(`   SMTP Response Code: ${error.responseCode}`);
+      }
+      
+      // Specific error handling
+      if (error.code === 'EAUTH') {
+        logger.error('   🔑 Authentication failed. Please check your EMAIL_USER and EMAIL_PASS.');
+        logger.error('   Make sure you are using an App Password: https://myaccount.google.com/apppasswords');
+      } else if (error.code === 'ECONNECTION' || error.code === 'ESOCKET') {
+        logger.error('   🔌 Connection failed. Please check your network and EMAIL_HOST/EMAIL_PORT settings.');
+      } else if (error.code === 'ETIMEDOUT') {
+        logger.error('   ⏱️ Connection timed out. Please check your internet connection.');
+      }
+      
       return false;
     }
   }
@@ -302,7 +370,7 @@ class EmailService {
   }
 
   // ============================================================
-  // TICKET TEMPLATES
+  // TICKET TEMPLATES (UNCHANGED)
   // ============================================================
 
   _ticketCreatedTemplate(name, ticket) {
@@ -410,7 +478,7 @@ class EmailService {
 }
 
 // ============================================================
-// ✅ EXPORT
+// ✅ EXPORT (UNCHANGED)
 // ============================================================
 
 const emailService = new EmailService();
