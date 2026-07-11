@@ -2,17 +2,13 @@
 // backend/src/services/emailService.js
 // ============================================================
 // Description: Complete email service with all email templates
-// Version: 3.3.0 (Gmail SMTP - Production Ready)
+// Version: 3.3.0 (Gmail SMTP - Production Ready with Debug Logs)
 // ============================================================
 
-console.log("📧 sendEmail() called");
-console.log("To:", to);
-console.log("Subject:", subject);
 import env from '../config/env.js';
 import logger from '../config/logger.js';
 import nodemailer from 'nodemailer';
 import dns from 'dns';
-
 
 // ✅ Force IPv4 only (disable IPv6) - Fix for Render ENETUNREACH error
 dns.setDefaultResultOrder('ipv4first');
@@ -62,14 +58,24 @@ class EmailService {
    * Send email using Nodemailer with Gmail SMTP
    */
   async sendEmail({ to, subject, html, text, attachments = [] }) {
+    // ✅ Debug logs - এখানে console.log যোগ করা হয়েছে
+    console.log("📧 sendEmail() called");
+    console.log("To:", to);
+    console.log("Subject:", subject);
+    console.log("Has HTML:", !!html);
+    console.log("Has Text:", !!text);
+    console.log("Attachments:", attachments?.length || 0);
+    
     if (!this.initialized) {
       logger.warn('⚠️ Email service not initialized, skipping email send');
+      console.log("❌ Email service not initialized");
       return false;
     }
 
     // Validate recipient
     if (!to) {
       logger.error('❌ No recipient specified');
+      console.log("❌ No recipient specified");
       return false;
     }
 
@@ -83,6 +89,12 @@ class EmailService {
         text: text || html?.replace(/<[^>]*>/g, '') || '',
       };
 
+      // ✅ Additional debug log
+      console.log("📧 Preparing to send email...");
+      console.log("From:", mailOptions.from);
+      console.log("HTML length:", mailOptions.html?.length || 0);
+      console.log("Text length:", mailOptions.text?.length || 0);
+
       // Handle attachments for Nodemailer
       if (attachments && attachments.length > 0) {
         mailOptions.attachments = attachments.map((a) => ({
@@ -91,9 +103,11 @@ class EmailService {
           ...(a.path && { path: a.path }),
           ...(a.cid && { cid: a.cid })
         }));
+        console.log("📎 Attachments processed:", attachments.length);
       }
 
       // Send email using Nodemailer with timeout
+      console.log("⏳ Sending email...");
       const sendPromise = transporter.sendMail(mailOptions);
       const timeoutPromise = new Promise((_, reject) => 
         setTimeout(() => reject(new Error('Send timeout - Please try again later')), 20000)
@@ -107,6 +121,11 @@ class EmailService {
       logger.info(`   Message ID: ${info.messageId}`);
       logger.info(`   Response: ${info.response || 'OK'}`);
       
+      // ✅ Success log
+      console.log("✅ Email sent successfully!");
+      console.log("Message ID:", info.messageId);
+      console.log("Response:", info.response || 'OK');
+      
       return true;
       
     } catch (error) {
@@ -114,6 +133,11 @@ class EmailService {
       logger.error(`   To: ${to}`);
       logger.error(`   Subject: ${subject}`);
       logger.error(`   Error: ${error.message}`);
+      
+      // ✅ Error log
+      console.log("❌ Email failed!");
+      console.log("Error:", error.message);
+      console.log("Error Code:", error.code || 'N/A');
       
       // Log additional error details for debugging
       if (error.code) {
@@ -130,15 +154,19 @@ class EmailService {
       if (error.code === 'EAUTH') {
         logger.error('   🔑 Authentication failed. Please check your EMAIL_USER and EMAIL_PASS.');
         logger.error('   Make sure you are using an App Password: https://myaccount.google.com/apppasswords');
+        console.log("🔑 Authentication failed - Check App Password");
       } else if (error.code === 'ECONNECTION' || error.code === 'ESOCKET') {
         logger.error('   🔌 Connection failed. Please check your network and EMAIL_HOST/EMAIL_PORT settings.');
+        console.log("🔌 Connection failed - Check network");
       } else if (error.code === 'ENETUNREACH') {
         logger.error('   🌐 Network unreachable. Render may be blocking SMTP port.');
         logger.error('   Trying alternative port 465...');
+        console.log("🌐 Network unreachable - Trying port 465");
         // Try alternative port
         return await this.tryAlternativePort(to, subject, html, text, attachments);
       } else if (error.code === 'ETIMEDOUT') {
         logger.error('   ⏱️ Connection timed out. Please check your internet connection.');
+        console.log("⏱️ Connection timed out");
       }
       
       return false;
@@ -150,6 +178,7 @@ class EmailService {
    */
   async tryAlternativePort(to, subject, html, text, attachments) {
     try {
+      console.log("🔄 Attempting to send via alternative port 465...");
       logger.info('🔄 Attempting to send via alternative port 465...');
       
       // Create new transporter for port 465
@@ -183,6 +212,7 @@ class EmailService {
         }));
       }
 
+      console.log("⏳ Sending via port 465...");
       const info = await altTransporter.sendMail(mailOptions);
       
       logger.info(`📧 Email sent successfully via port 465`);
@@ -190,10 +220,14 @@ class EmailService {
       logger.info(`   Subject: ${subject}`);
       logger.info(`   Message ID: ${info.messageId}`);
       
+      console.log("✅ Email sent successfully via port 465!");
+      console.log("Message ID:", info.messageId);
+      
       return true;
       
     } catch (error) {
       logger.error(`❌ Alternative port also failed: ${error.message}`);
+      console.log("❌ Alternative port also failed:", error.message);
       return false;
     }
   }
@@ -203,6 +237,10 @@ class EmailService {
   // ============================================================
 
   async sendVerificationEmail(email, name, verificationToken) {
+    console.log("📧 sendVerificationEmail() called");
+    console.log("Email:", email);
+    console.log("Name:", name);
+    
     const verifyLink = `${env.frontendUrl}/verify-email?token=${verificationToken}`;
     const subject = 'Verify Your Email - ISP Ticketing System';
 
@@ -268,6 +306,10 @@ class EmailService {
   // ============================================================
 
   async sendWelcomeEmail(email, name) {
+    console.log("📧 sendWelcomeEmail() called");
+    console.log("Email:", email);
+    console.log("Name:", name);
+    
     const subject = 'Welcome to ISP Ticketing System';
 
     const html = `
@@ -329,6 +371,10 @@ class EmailService {
   // ============================================================
 
   async sendPasswordResetEmail(email, name, resetToken) {
+    console.log("📧 sendPasswordResetEmail() called");
+    console.log("Email:", email);
+    console.log("Name:", name);
+    
     const resetLink = `${env.frontendUrl}/reset-password?token=${resetToken}`;
     const subject = 'Reset Your Password - ISP Ticketing System';
 
@@ -391,12 +437,17 @@ class EmailService {
   // ============================================================
 
   async sendTicketNotification(ticket, eventType) {
+    console.log("📧 sendTicketNotification() called");
+    console.log("Event Type:", eventType);
+    console.log("Ticket ID:", ticket?.ticketId);
+    
     const customer = ticket.customer;
     const email = customer?.email;
     const name = customer?.name || 'Customer';
 
     if (!email) {
       logger.warn('No customer email found for ticket notification');
+      console.log("❌ No customer email found");
       return false;
     }
 
@@ -420,6 +471,7 @@ class EmailService {
         html = this._ticketResolvedTemplate(name, ticket);
         break;
       default:
+        console.log("❌ Unknown event type:", eventType);
         return false;
     }
 
